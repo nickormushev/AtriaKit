@@ -1,0 +1,31 @@
+[project]
+name = "ecg-annotator"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "PyQt6>=6.10.0",
+    "pyqtgraph>=0.13.7",
+    "numpy>=2.2.5",
+    "pandas>=2.2.3",
+    "pydicom>=3.0.1",
+]
+
+[project.scripts]
+ecg-annotator = "ecg_annotator.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyqt6"
+
+[tool.coverage.run]
+omit = ["src/ecg_annotator/plotter.py"]
+
+[tool.pylint."MESSAGES CONTROL"]
+ignored-modules = ["PyQt6"]
