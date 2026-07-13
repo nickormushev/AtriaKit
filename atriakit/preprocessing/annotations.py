@@ -1,50 +1,7 @@
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
-
 from atriakit.models.annotations import Annotations
 from atriakit.models.annotation_schema import AnnotationSchema
-
-_DEDUP_COLUMNS = [
-    AnnotationSchema.PATIENT_ID,
-    AnnotationSchema.FILE_PATH,
-    AnnotationSchema.LEAD,
-    AnnotationSchema.ONSET,
-    AnnotationSchema.OFFSET,
-    AnnotationSchema.TYPE,
-]
-
-
-def prepare_annotations(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize, deduplicate, and filter a raw annotation DataFrame.
-
-    Normalizes ``file_path`` path separators to forward slashes, drops
-    duplicate rows, and removes rows flagged with ``ignore``.
-
-    Args:
-        df: Raw annotation DataFrame, typically loaded from a CSV or directory.
-
-    Returns:
-        Cleaned copy of ``df`` ready for multilead enrichment.
-    """
-    prepared = df.copy()
-    if AnnotationSchema.FILE_PATH in prepared.columns:
-        prepared[AnnotationSchema.FILE_PATH] = (
-            prepared[AnnotationSchema.FILE_PATH]
-            .astype(str)
-            .str.replace("\\", "/", regex=False)
-        )
-
-    duplicate_subset = [col for col in _DEDUP_COLUMNS if col in prepared.columns]
-    if duplicate_subset:
-        prepared = prepared.drop_duplicates(duplicate_subset)
-
-    if AnnotationSchema.IGNORE in prepared.columns:
-        prepared = prepared[~prepared[AnnotationSchema.IGNORE]].drop(
-            columns=[AnnotationSchema.IGNORE]
-        )
-    return prepared
 
 
 def group_p_waves(

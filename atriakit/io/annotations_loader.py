@@ -8,7 +8,46 @@ import pandas as pd
 from atriakit.configs.annotations_loader_config import AnnotationsLoaderConfig
 from atriakit.models.annotation_schema import AnnotationSchema
 from atriakit.models.annotations import Annotations
-from atriakit.preprocessing.annotations import prepare_annotations
+
+_DEDUP_COLUMNS = [
+    AnnotationSchema.PATIENT_ID,
+    AnnotationSchema.FILE_PATH,
+    AnnotationSchema.LEAD,
+    AnnotationSchema.ONSET,
+    AnnotationSchema.OFFSET,
+    AnnotationSchema.TYPE,
+]
+
+
+def _prepare_annotations(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize, deduplicate, and filter a raw annotation DataFrame.
+
+    Normalizes ``file_path`` path separators to forward slashes, drops
+    duplicate rows, and removes rows flagged with ``ignore``.
+
+    Args:
+        df: Raw annotation DataFrame, typically loaded from a CSV or directory.
+
+    Returns:
+        Cleaned copy of ``df`` ready for multilead enrichment.
+    """
+    prepared = df.copy()
+    if AnnotationSchema.FILE_PATH in prepared.columns:
+        prepared[AnnotationSchema.FILE_PATH] = (
+            prepared[AnnotationSchema.FILE_PATH]
+            .astype(str)
+            .str.replace("\\", "/", regex=False)
+        )
+
+    duplicate_subset = [col for col in _DEDUP_COLUMNS if col in prepared.columns]
+    if duplicate_subset:
+        prepared = prepared.drop_duplicates(duplicate_subset)
+
+    if AnnotationSchema.IGNORE in prepared.columns:
+        prepared = prepared[~prepared[AnnotationSchema.IGNORE]].drop(
+            columns=[AnnotationSchema.IGNORE]
+        )
+    return prepared
 
 
 def _compute_multilead(df: pd.DataFrame) -> pd.DataFrame:
@@ -134,7 +173,7 @@ class AnnotationsLoader:
         Normalizes file paths, drops duplicates and ignored rows, then applies
         multilead onset/offset enrichment.
         """
-        df = prepare_annotations(df)
+        df = _prepare_annotations(df)
         df = _compute_multilead(df)
         df = _apply_boundary_mode(df, self.config)
         return Annotations(df)

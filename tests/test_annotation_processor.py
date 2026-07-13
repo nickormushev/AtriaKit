@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from atriakit.paper.annotation_processor import AnnotationProcessor  # <-- adjust import
-from atriakit.preprocessing.annotations import prepare_annotations
+from atriakit.io.annotations_loader import _prepare_annotations
 from atriakit.models.annotation_schema import AnnotationSchema
 
 
@@ -27,7 +27,7 @@ def test_prepare_annotations_deduplicates_after_path_normalization():
         }
     )
 
-    prepared = prepare_annotations(annotations)
+    prepared = _prepare_annotations(annotations)
 
     assert len(prepared) == 1
     assert prepared.iloc[0]["file_path"] == "BaselSensis/PatientA/StudyX/Name.1234.IMA"
