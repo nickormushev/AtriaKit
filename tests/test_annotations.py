@@ -11,13 +11,13 @@ def sample_annotations_multiple_leads():
     # Two P-waves (1 and 2), each annotated across two leads
     return pd.DataFrame(
         {
-            "p_wave_id": [1, 1, 2, 2],
-            "file_path": ["file1", "file1", "file1", "file1"],
-            "type": ["A", "A", "B", "B"],
-            "lead": ["I", "II", "I", "II"],
-            "onset": [2, 1, 0, 1],  # per-lead onsets
-            "offset": [4, 5, 2, 3],  # per-lead offsets
-            "qrs_onset": [5, 6, 3, 4],
+            AnnotationSchema.P_WAVE_ID: [1, 1, 2, 2],
+            AnnotationSchema.FILE_PATH: ["file1", "file1", "file1", "file1"],
+            AnnotationSchema.TYPE: ["A", "A", "B", "B"],
+            AnnotationSchema.LEAD: ["I", "II", "I", "II"],
+            AnnotationSchema.ONSET: [2, 1, 0, 1],  # per-lead onsets
+            AnnotationSchema.OFFSET: [4, 5, 2, 3],  # per-lead offsets
+            AnnotationSchema.QRS_ONSET: [5, 6, 3, 4],
         }
     )
 
@@ -31,16 +31,16 @@ def test_annotations_class_compute_multilead_rows_cross_lead(sample_annotations_
     df = annotations._df
 
     # P-wave 1: earliest onset = min(2,1)=1, latest offset=max(4,5)=5
-    pw1 = df[df["p_wave_id"] == 1]
-    assert (pw1["onset"] == 1).all()
-    assert (pw1["offset"] == 5).all()
-    assert (pw1["qrs_onset"] == 5).all()
+    pw1 = df[df[AnnotationSchema.P_WAVE_ID] == 1]
+    assert (pw1[AnnotationSchema.ONSET] == 1).all()
+    assert (pw1[AnnotationSchema.OFFSET] == 5).all()
+    assert (pw1[AnnotationSchema.QRS_ONSET] == 5).all()
 
     # P-wave 2: earliest onset = min(0,1)=0, latest offset=max(3,2)=3
-    pw2 = df[df["p_wave_id"] == 2]
-    assert (pw2["onset"] == 0).all()
-    assert (pw2["offset"] == 3).all()
-    assert (pw2["qrs_onset"] == 3).all()
+    pw2 = df[df[AnnotationSchema.P_WAVE_ID] == 2]
+    assert (pw2[AnnotationSchema.ONSET] == 0).all()
+    assert (pw2[AnnotationSchema.OFFSET] == 3).all()
+    assert (pw2[AnnotationSchema.QRS_ONSET] == 3).all()
 
 
 def test_annotations_class_compute_multilead_rows_per_lead(sample_annotations_multiple_leads):
@@ -51,15 +51,15 @@ def test_annotations_class_compute_multilead_rows_per_lead(sample_annotations_mu
     df = annotations._df
 
     # onset/offset reflect each lead's own annotation values
-    pw1 = df[df["p_wave_id"] == 1].set_index("lead")
-    assert pw1.loc["I", "onset"] == 2
-    assert pw1.loc["II", "onset"] == 1
-    assert pw1.loc["I", "offset"] == 4
-    assert pw1.loc["II", "offset"] == 5
+    pw1 = df[df[AnnotationSchema.P_WAVE_ID] == 1].set_index(AnnotationSchema.LEAD)
+    assert pw1.loc["I", AnnotationSchema.ONSET] == 2
+    assert pw1.loc["II", AnnotationSchema.ONSET] == 1
+    assert pw1.loc["I", AnnotationSchema.OFFSET] == 4
+    assert pw1.loc["II", AnnotationSchema.OFFSET] == 5
 
     # onset_original matches onset in per_lead mode
-    assert (df["onset"] == df["onset_original"]).all()
-    assert (df["offset"] == df["offset_original"]).all()
+    assert (df[AnnotationSchema.ONSET] == df[AnnotationSchema.ONSET_ORIGINAL]).all()
+    assert (df[AnnotationSchema.OFFSET] == df[AnnotationSchema.OFFSET_ORIGINAL]).all()
 
 
 def test_annotations_class_compute_multilead(sample_annotations_multiple_leads):
@@ -77,13 +77,13 @@ def test_annotations_class_compute_multilead(sample_annotations_multiple_leads):
 def test_annotations_class_get_vcg_annotations_uses_multilead_values():
     raw = pd.DataFrame(
         {
-            "p_wave_id": [1, 1],
-            "file_path": ["file1", "file1"],
-            "type": ["Before", "Before"],
-            "lead": ["I", "II"],
-            "onset": [12, 10],
-            "offset": [18, 20],
-            "qrs_onset": [25, 25],
+            AnnotationSchema.P_WAVE_ID: [1, 1],
+            AnnotationSchema.FILE_PATH: ["file1", "file1"],
+            AnnotationSchema.TYPE: ["Before", "Before"],
+            AnnotationSchema.LEAD: ["I", "II"],
+            AnnotationSchema.ONSET: [12, 10],
+            AnnotationSchema.OFFSET: [18, 20],
+            AnnotationSchema.QRS_ONSET: [25, 25],
         }
     )
 
@@ -91,13 +91,13 @@ def test_annotations_class_get_vcg_annotations_uses_multilead_values():
     vcg = annotations.vcg_annotations()
 
     assert isinstance(vcg, Annotations)
-    assert list(vcg._df["lead"].unique()) == ["VCG"]
+    assert list(vcg._df[AnnotationSchema.LEAD].unique()) == ["VCG"]
     # multilead onset = min(12, 10) = 10; offset = max(18, 20) = 20
-    assert list(vcg._df["onset"]) == [10]
-    assert list(vcg._df["offset"]) == [20]
+    assert list(vcg._df[AnnotationSchema.ONSET]) == [10]
+    assert list(vcg._df[AnnotationSchema.OFFSET]) == [20]
     # per-lead values are NaN for VCG
-    assert vcg._df["onset_original"].isna().all()
-    assert vcg._df["offset_original"].isna().all()
+    assert vcg._df[AnnotationSchema.ONSET_ORIGINAL].isna().all()
+    assert vcg._df[AnnotationSchema.OFFSET_ORIGINAL].isna().all()
 
 
 def test_annotations_preserves_dataframe_index():
@@ -107,11 +107,11 @@ def test_annotations_preserves_dataframe_index():
     # self.annotations.loc[type_group.index, ...] land on wrong rows.
     df = pd.DataFrame(
         {
-            "p_wave_id": [0, 0, 1, 1],
-            "file_path": ["f", "f", "f", "f"],
-            "lead": ["I", "II", "I", "II"],
-            "onset": [10, 9, 20, 21],
-            "offset": [15, 16, 25, 26],
+            AnnotationSchema.P_WAVE_ID: [0, 0, 1, 1],
+            AnnotationSchema.FILE_PATH: ["f", "f", "f", "f"],
+            AnnotationSchema.LEAD: ["I", "II", "I", "II"],
+            AnnotationSchema.ONSET: [10, 9, 20, 21],
+            AnnotationSchema.OFFSET: [15, 16, 25, 26],
         },
         index=[100, 200, 300, 400],
     )
@@ -121,15 +121,31 @@ def test_annotations_preserves_dataframe_index():
 
 
 def test_annotations_loader_load_directory_combines_csvs(tmp_path):
-    a = pd.DataFrame({"file_path": ["f"], "lead": ["I"], "onset": [0], "offset": [5], "p_wave_id": [1]})
-    b = pd.DataFrame({"file_path": ["f"], "lead": ["II"], "onset": [1], "offset": [6], "p_wave_id": [1]})
+    a = pd.DataFrame(
+        {
+            AnnotationSchema.FILE_PATH: ["f"],
+            AnnotationSchema.LEAD: ["I"],
+            AnnotationSchema.ONSET: [0],
+            AnnotationSchema.OFFSET: [5],
+            AnnotationSchema.P_WAVE_ID: [1],
+        }
+    )
+    b = pd.DataFrame(
+        {
+            AnnotationSchema.FILE_PATH: ["f"],
+            AnnotationSchema.LEAD: ["II"],
+            AnnotationSchema.ONSET: [1],
+            AnnotationSchema.OFFSET: [6],
+            AnnotationSchema.P_WAVE_ID: [1],
+        }
+    )
     a.to_csv(tmp_path / "a.csv", index=False)
     b.to_csv(tmp_path / "b.csv", index=False)
 
     ann = AnnotationsLoader().load(tmp_path)
 
     assert isinstance(ann, Annotations)
-    assert set(ann._df["lead"].unique()) == {"I", "II"}
+    assert set(ann._df[AnnotationSchema.LEAD].unique()) == {"I", "II"}
 
 
 def test_annotations_loader_load_empty_directory_raises(tmp_path):
@@ -138,7 +154,15 @@ def test_annotations_loader_load_empty_directory_raises(tmp_path):
 
 
 def test_annotations_loader_load_directory_skips_unregistered_extensions(tmp_path):
-    a = pd.DataFrame({"file_path": ["f"], "lead": ["I"], "onset": [0], "offset": [5], "p_wave_id": [1]})
+    a = pd.DataFrame(
+        {
+            AnnotationSchema.FILE_PATH: ["f"],
+            AnnotationSchema.LEAD: ["I"],
+            AnnotationSchema.ONSET: [0],
+            AnnotationSchema.OFFSET: [5],
+            AnnotationSchema.P_WAVE_ID: [1],
+        }
+    )
     a.to_csv(tmp_path / "a.csv", index=False)
     (tmp_path / "notes.txt").write_text("ignore me")
 
@@ -150,19 +174,51 @@ def test_annotations_loader_load_directory_skips_unregistered_extensions(tmp_pat
 def test_annotations_loader_load_directory_crawls_subdirectories(tmp_path):
     sub = tmp_path / "patient_01"
     sub.mkdir()
-    a = pd.DataFrame({"file_path": ["f"], "lead": ["I"], "onset": [0], "offset": [5], "p_wave_id": [1]})
-    b = pd.DataFrame({"file_path": ["f"], "lead": ["II"], "onset": [1], "offset": [6], "p_wave_id": [1]})
+    a = pd.DataFrame(
+        {
+            AnnotationSchema.FILE_PATH: ["f"],
+            AnnotationSchema.LEAD: ["I"],
+            AnnotationSchema.ONSET: [0],
+            AnnotationSchema.OFFSET: [5],
+            AnnotationSchema.P_WAVE_ID: [1],
+        }
+    )
+    b = pd.DataFrame(
+        {
+            AnnotationSchema.FILE_PATH: ["f"],
+            AnnotationSchema.LEAD: ["II"],
+            AnnotationSchema.ONSET: [1],
+            AnnotationSchema.OFFSET: [6],
+            AnnotationSchema.P_WAVE_ID: [1],
+        }
+    )
     a.to_csv(tmp_path / "a.csv", index=False)
     b.to_csv(sub / "b.csv", index=False)
 
     ann = AnnotationsLoader().load(tmp_path)
 
-    assert set(ann._df["lead"].unique()) == {"I", "II"}
+    assert set(ann._df[AnnotationSchema.LEAD].unique()) == {"I", "II"}
 
 
 def test_annotations_loader_load_directory_uses_registered_loader_per_extension(tmp_path):
-    csv_df = pd.DataFrame({"file_path": ["f"], "lead": ["I"], "onset": [0], "offset": [5], "p_wave_id": [1]})
-    tsv_df = pd.DataFrame({"file_path": ["f"], "lead": ["II"], "onset": [1], "offset": [6], "p_wave_id": [1]})
+    csv_df = pd.DataFrame(
+        {
+            AnnotationSchema.FILE_PATH: ["f"],
+            AnnotationSchema.LEAD: ["I"],
+            AnnotationSchema.ONSET: [0],
+            AnnotationSchema.OFFSET: [5],
+            AnnotationSchema.P_WAVE_ID: [1],
+        }
+    )
+    tsv_df = pd.DataFrame(
+        {
+            AnnotationSchema.FILE_PATH: ["f"],
+            AnnotationSchema.LEAD: ["II"],
+            AnnotationSchema.ONSET: [1],
+            AnnotationSchema.OFFSET: [6],
+            AnnotationSchema.P_WAVE_ID: [1],
+        }
+    )
     csv_df.to_csv(tmp_path / "a.csv", index=False)
     tsv_df.to_csv(tmp_path / "b.tsv", index=False, sep="\t")
 
@@ -174,18 +230,18 @@ def test_annotations_loader_load_directory_uses_registered_loader_per_extension(
     loader.register(".tsv", TsvLoader())
     ann = loader.load(tmp_path)
 
-    assert set(ann._df["lead"].unique()) == {"I", "II"}
+    assert set(ann._df[AnnotationSchema.LEAD].unique()) == {"I", "II"}
 
 
 def _make_df(**extra):
     base = {
-        "p_wave_id": [0, 0, 1, 1],
-        "file_path": ["f", "f", "f", "f"],
-        "lead": ["I", "II", "I", "II"],
-        "onset": [10, 11, 20, 21],
-        "offset": [15, 16, 25, 26],
-        "onset_original": [10, 11, 20, 21],
-        "offset_original": [15, 16, 25, 26],
+        AnnotationSchema.P_WAVE_ID: [0, 0, 1, 1],
+        AnnotationSchema.FILE_PATH: ["f", "f", "f", "f"],
+        AnnotationSchema.LEAD: ["I", "II", "I", "II"],
+        AnnotationSchema.ONSET: [10, 11, 20, 21],
+        AnnotationSchema.OFFSET: [15, 16, 25, 26],
+        AnnotationSchema.ONSET_ORIGINAL: [10, 11, 20, 21],
+        AnnotationSchema.OFFSET_ORIGINAL: [15, 16, 25, 26],
     }
     base.update(extra)
     return pd.DataFrame(base)
@@ -195,56 +251,56 @@ def test_constructor_isolates_from_source_df():
     """Mutations to the source DataFrame must not affect Annotations internals."""
     df = _make_df()
     ann = Annotations(df)
-    df["onset"] = 999
-    assert (ann._df["onset"] != 999).all()
+    df[AnnotationSchema.ONSET] = 999
+    assert (ann._df[AnnotationSchema.ONSET] != 999).all()
 
 
 def test_sort_values_does_not_mutate_source():
     """sort_values must return a new Annotations without affecting the original."""
     ann = Annotations(_make_df())
-    original_order = list(ann._df["onset"])
-    sorted_ann = ann.sort_values(by="onset", ascending=False)
-    assert list(ann._df["onset"]) == original_order
-    assert list(sorted_ann._df["onset"]) == sorted(original_order, reverse=True)
+    original_order = list(ann._df[AnnotationSchema.ONSET])
+    sorted_ann = ann.sort_values(by=AnnotationSchema.ONSET, ascending=False)
+    assert list(ann._df[AnnotationSchema.ONSET]) == original_order
+    assert list(sorted_ann._df[AnnotationSchema.ONSET]) == sorted(original_order, reverse=True)
 
 
 def test_filter_by_lead_does_not_mutate_source():
     """filter_by_lead must return a new Annotations without affecting the original."""
     ann = Annotations(_make_df())
     filtered = ann.filter_by_lead("I")
-    filtered["onset"] = 999
-    assert (ann._df["onset"] != 999).all()
-    assert list(filtered._df["lead"].unique()) == ["I"]
+    filtered[AnnotationSchema.ONSET] = 999
+    assert (ann._df[AnnotationSchema.ONSET] != 999).all()
+    assert list(filtered._df[AnnotationSchema.LEAD].unique()) == ["I"]
 
 
 def test_copy_is_independent():
     """copy() must return an independent Annotations."""
     ann = Annotations(_make_df())
     c = ann.copy()
-    c["onset"] = 999
-    assert (ann._df["onset"] != 999).all()
+    c[AnnotationSchema.ONSET] = 999
+    assert (ann._df[AnnotationSchema.ONSET] != 999).all()
 
 
 def test_groupby_yields_annotations():
     """groupby must yield (key, Annotations) pairs."""
     ann = Annotations(_make_df())
-    for lead, group in ann.groupby("lead"):
+    for lead, group in ann.groupby(AnnotationSchema.LEAD):
         assert isinstance(group, Annotations)
-        assert (group._df["lead"] == lead).all()
+        assert (group._df[AnnotationSchema.LEAD] == lead).all()
 
 
 def test_loc_mask_returns_annotations():
     """loc with a boolean mask must return an Annotations."""
     ann = Annotations(_make_df())
-    result = ann.loc[ann._df["lead"] == "I"]
+    result = ann.loc[ann._df[AnnotationSchema.LEAD] == "I"]
     assert isinstance(result, Annotations)
-    assert list(result._df["lead"].unique()) == ["I"]
+    assert list(result._df[AnnotationSchema.LEAD].unique()) == ["I"]
 
 
 def test_getitem_column_returns_series():
     """Column access returns a raw Series, not Annotations."""
     ann = Annotations(_make_df())
-    col = ann["onset"]
+    col = ann[AnnotationSchema.ONSET]
     assert isinstance(col, pd.Series)
 
 
@@ -260,15 +316,13 @@ def test_drop_inplace_removes_rows():
 def test_vcg_annotations_does_not_mutate_source():
     """vcg_annotations must not modify the original Annotations."""
     ann = Annotations(_make_df())
-    leads_before = list(ann._df["lead"])
+    leads_before = list(ann._df[AnnotationSchema.LEAD])
     ann.vcg_annotations()
-    assert list(ann._df["lead"]) == leads_before
+    assert list(ann._df[AnnotationSchema.LEAD]) == leads_before
 
 
 def test_setitem_mutates_in_place():
     """__setitem__ must mutate _df directly (used by pipeline write-back)."""
     ann = Annotations(_make_df())
-    ann["onset"] = 42
-    assert (ann._df["onset"] == 42).all()
-
-
+    ann[AnnotationSchema.ONSET] = 42
+    assert (ann._df[AnnotationSchema.ONSET] == 42).all()

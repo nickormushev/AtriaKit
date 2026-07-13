@@ -2,9 +2,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from atriakit.models.annotations import Annotations
 from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
 from atriakit.io import AnnotationsLoader
+from atriakit.models.annotation_schema import AnnotationSchema
+from atriakit.models.annotations import Annotations
 from atriakit.preprocessing.signals import SignalPreprocessor
 
 
@@ -39,9 +40,7 @@ def test_preprocess_bandpass(raw_ecg):
     """
     Bandpass should run after notch filter.
     """
-    preprocessor = SignalPreprocessor(
-        SignalPreprocessorConfig(lowcut=0.5, highcut=40)
-    )
+    preprocessor = SignalPreprocessor(SignalPreprocessorConfig(lowcut=0.5, highcut=40))
 
     result = preprocessor.preprocess(raw_ecg, 500)
 
@@ -144,11 +143,16 @@ def test_preprocess_skips_notch_filter_when_disabled(monkeypatch, raw_ecg):
     assert np.allclose(result, np.ones((12, 100)))
 
 
-@pytest.mark.parametrize("lowcut,highcut,expected_btype", [
-    (None, 40, "low"),
-    (0.5, None, "high"),
-])
-def test_preprocess_single_cutoff_uses_correct_filter_type(monkeypatch, raw_ecg, lowcut, highcut, expected_btype):
+@pytest.mark.parametrize(
+    "lowcut,highcut,expected_btype",
+    [
+        (None, 40, "low"),
+        (0.5, None, "high"),
+    ],
+)
+def test_preprocess_single_cutoff_uses_correct_filter_type(
+    monkeypatch, raw_ecg, lowcut, highcut, expected_btype
+):
     sampling_frequency = 500
     cutoff = (highcut or lowcut) / (sampling_frequency / 2)
 
@@ -158,37 +162,59 @@ def test_preprocess_single_cutoff_uses_correct_filter_type(monkeypatch, raw_ecg,
         lambda order, c, btype="bandpass": calls.append((btype, c)) or (None, None),
     )
     monkeypatch.setattr("atriakit.preprocessing.signals.filtfilt", lambda b, a, x: x)
-    preprocessor = SignalPreprocessor(SignalPreprocessorConfig(lowcut=lowcut, highcut=highcut, notch_freq=None))
+    preprocessor = SignalPreprocessor(
+        SignalPreprocessorConfig(lowcut=lowcut, highcut=highcut, notch_freq=None)
+    )
     preprocessor.preprocess(raw_ecg, sampling_frequency)
     assert calls == [(expected_btype, cutoff)]
 
 
 def _spline_preprocessor():
-    return SignalPreprocessor(SignalPreprocessorConfig(
-        lowcut=None, highcut=None, notch_freq=None,
-        global_baseline_mode="p_onset_spline",
-        global_baseline_smoothing_factor=0.1,
-    ))
+    return SignalPreprocessor(
+        SignalPreprocessorConfig(
+            lowcut=None,
+            highcut=None,
+            notch_freq=None,
+            global_baseline_mode="p_onset_spline",
+            global_baseline_smoothing_factor=0.1,
+        )
+    )
 
 
 def _ann(leads, onsets, offsets):
-    return AnnotationsLoader().from_dataframe(pd.DataFrame({
-        "file_path": ["f"] * len(leads),
-        "lead": leads,
-        "onset": onsets,
-        "offset": offsets,
-        "p_wave_id": list(range(len(leads))),
-    }))
+    return AnnotationsLoader().from_dataframe(
+        pd.DataFrame(
+            {
+                AnnotationSchema.FILE_PATH: ["f"] * len(leads),
+                AnnotationSchema.LEAD: leads,
+                AnnotationSchema.ONSET: onsets,
+                AnnotationSchema.OFFSET: offsets,
+                AnnotationSchema.P_WAVE_ID: list(range(len(leads))),
+            }
+        )
+    )
 
 
 def test_extract_onsets_returns_none_when_baseline_disabled():
-    preprocessor = SignalPreprocessor(SignalPreprocessorConfig(global_baseline_mode="none"))
+    preprocessor = SignalPreprocessor(
+        SignalPreprocessorConfig(global_baseline_mode="none")
+    )
     ann = _ann(["I"], [10], [20])
     assert preprocessor.set_baseline_onsets(ann) is None
 
 
 def test_extract_onsets_returns_none_for_empty_annotations():
-    ann = Annotations(pd.DataFrame(columns=["file_path", "lead", "onset", "offset", "p_wave_id"]))
+    ann = Annotations(
+        pd.DataFrame(
+            columns=[
+                AnnotationSchema.FILE_PATH,
+                AnnotationSchema.LEAD,
+                AnnotationSchema.ONSET,
+                AnnotationSchema.OFFSET,
+                AnnotationSchema.P_WAVE_ID,
+            ]
+        )
+    )
     assert _spline_preprocessor().set_baseline_onsets(ann) is None
 
 

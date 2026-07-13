@@ -2,7 +2,6 @@ import numpy as np
 from scipy.interpolate import make_splrep
 
 from atriakit.constants import VCG_LEADS as _VCG_LEADS
-from atriakit.models.annotation_schema import AnnotationSchema
 
 
 def apply_baseline_correction(segment: np.ndarray, update_type: str) -> np.ndarray:

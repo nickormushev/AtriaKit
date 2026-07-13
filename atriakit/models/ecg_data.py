@@ -81,7 +81,7 @@ class ECGData:
         try:
             lead_idx = self._lead_to_index[lead]
         except KeyError as err:
-            raise KeyError(
+            raise ValueError(
                 f"Unknown lead: {lead!r}. Valid leads: {list(self._lead_to_index)}"
             ) from err
         return ecg[lead_idx].copy()

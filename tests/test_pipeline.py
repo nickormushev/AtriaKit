@@ -41,12 +41,12 @@ def test_pipeline_run_batches_by_file_and_type(monkeypatch, tmp_path):
     annotations = _ann(
         pd.DataFrame(
             {
-                "file_path": ["record1.IMA", "record1.IMA", "record1.IMA"],
-                "lead": ["I", "II", "I"],
-                "onset": [0, 5, 50],
-                "offset": [5, 10, 55],
-                "type": ["Before", "Before", "After"],
-                "p_wave_id": [1, 1, 2],
+                AnnotationSchema.FILE_PATH: ["record1.IMA", "record1.IMA", "record1.IMA"],
+                AnnotationSchema.LEAD: ["I", "II", "I"],
+                AnnotationSchema.ONSET: [0, 5, 50],
+                AnnotationSchema.OFFSET: [5, 10, 55],
+                AnnotationSchema.TYPE: ["Before", "Before", "After"],
+                AnnotationSchema.P_WAVE_ID: [1, 1, 2],
             }
         )
     )
@@ -126,9 +126,9 @@ def test_pipeline_run_batches_by_file_and_type(monkeypatch, tmp_path):
     assert compute_calls[0]["sample_entropy_m"] == 3
     assert compute_calls[0]["sample_entropy_r_factor"] == 0.5
     assert "dummy_feature" in result.columns
-    assert result.loc[0, "p_wave_id"] == 0
-    assert result.loc[1, "p_wave_id"] == 0
-    assert result.loc[2, "p_wave_id"] == 0
+    assert result.loc[0, AnnotationSchema.P_WAVE_ID] == 0
+    assert result.loc[1, AnnotationSchema.P_WAVE_ID] == 0
+    assert result.loc[2, AnnotationSchema.P_WAVE_ID] == 0
 
 
 def test_ecg_public_import_exposes_pipeline():
@@ -141,11 +141,11 @@ def test_pipeline_logs_missing_files(tmp_path, caplog):
     annotations = _ann(
         pd.DataFrame(
             {
-                "file_path": ["missing.IMA"],
-                "lead": ["I"],
-                "onset": [0],
-                "offset": [5],
-                "p_wave_id": [1],
+                AnnotationSchema.FILE_PATH: ["missing.IMA"],
+                AnnotationSchema.LEAD: ["I"],
+                AnnotationSchema.ONSET: [0],
+                AnnotationSchema.OFFSET: [5],
+                AnnotationSchema.P_WAVE_ID: [1],
             }
         )
     )
@@ -171,12 +171,12 @@ def test_pipeline_run_reuses_cached_normalization_stats(monkeypatch, tmp_path):
     annotations = _ann(
         pd.DataFrame(
             {
-                "file_path": ["record1.IMA", "record1.IMA"],
-                "lead": ["I", "II"],
-                "onset": [0, 5],
-                "offset": [5, 10],
-                "type": ["Before", "Before"],
-                "p_wave_id": [1, 1],
+                AnnotationSchema.FILE_PATH: ["record1.IMA", "record1.IMA"],
+                AnnotationSchema.LEAD: ["I", "II"],
+                AnnotationSchema.ONSET: [0, 5],
+                AnnotationSchema.OFFSET: [5, 10],
+                AnnotationSchema.TYPE: ["Before", "Before"],
+                AnnotationSchema.P_WAVE_ID: [1, 1],
             }
         )
     )
@@ -257,11 +257,11 @@ def test_pipeline_run_skips_normalization_when_disabled_in_preprocessor_config(
     annotations = _ann(
         pd.DataFrame(
             {
-                "file_path": ["record1.IMA"],
-                "lead": ["I"],
-                "onset": [0],
-                "offset": [5],
-                "p_wave_id": [1],
+                AnnotationSchema.FILE_PATH: ["record1.IMA"],
+                AnnotationSchema.LEAD: ["I"],
+                AnnotationSchema.ONSET: [0],
+                AnnotationSchema.OFFSET: [5],
+                AnnotationSchema.P_WAVE_ID: [1],
             }
         )
     )
@@ -300,16 +300,16 @@ def test_pipeline_run_does_not_mutate_caller_annotations(monkeypatch, tmp_path):
     annotations = _ann(
         pd.DataFrame(
             {
-                "file_path": ["record1.IMA"],
-                "lead": ["I"],
-                "onset": [0],
-                "offset": [5],
-                "p_wave_id": [1],
+                AnnotationSchema.FILE_PATH: ["record1.IMA"],
+                AnnotationSchema.LEAD: ["I"],
+                AnnotationSchema.ONSET: [0],
+                AnnotationSchema.OFFSET: [5],
+                AnnotationSchema.P_WAVE_ID: [1],
             }
         )
     )
     columns_before = list(annotations.columns)
-    onset_before = list(annotations._df["onset"])
+    onset_before = list(annotations._df[AnnotationSchema.ONSET])
 
     pipeline = Pipeline(
         ecg_base_path=tmp_path,
@@ -330,18 +330,18 @@ def test_pipeline_run_does_not_mutate_caller_annotations(monkeypatch, tmp_path):
     pipeline.run(annotations)
 
     assert list(annotations.columns) == columns_before
-    assert list(annotations._df["onset"]) == onset_before
+    assert list(annotations._df[AnnotationSchema.ONSET]) == onset_before
 
 
 def test_pipeline_from_yaml_loads_relative_paths_and_configs(tmp_path):
     annotations_csv = tmp_path / "annotations.csv"
     annotations = pd.DataFrame(
         {
-            "file_path": ["record1.IMA"],
-            "lead": ["I"],
-            "onset": [0],
-            "offset": [5],
-            "p_wave_id": [1],
+            AnnotationSchema.FILE_PATH: ["record1.IMA"],
+            AnnotationSchema.LEAD: ["I"],
+            AnnotationSchema.ONSET: [0],
+            AnnotationSchema.OFFSET: [5],
+            AnnotationSchema.P_WAVE_ID: [1],
         }
     )
     annotations.to_csv(annotations_csv, index=False)
@@ -381,11 +381,11 @@ def test_pipeline_run_from_yaml(tmp_path):
     annotations_csv = tmp_path / "annotations.csv"
     pd.DataFrame(
         {
-            "file_path": ["record1.IMA"],
-            "lead": ["I"],
-            "onset": [0],
-            "offset": [5],
-            "p_wave_id": [1],
+            AnnotationSchema.FILE_PATH: ["record1.IMA"],
+            AnnotationSchema.LEAD: ["I"],
+            AnnotationSchema.ONSET: [0],
+            AnnotationSchema.OFFSET: [5],
+            AnnotationSchema.P_WAVE_ID: [1],
         }
     ).to_csv(annotations_csv, index=False)
     (tmp_path / "dicoms").mkdir()

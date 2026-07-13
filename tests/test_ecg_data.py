@@ -3,11 +3,12 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-from atriakit.models.annotations import Annotations
 from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
+from atriakit.io import AnnotationsLoader
+from atriakit.models.annotation_schema import AnnotationSchema
+from atriakit.models.annotations import Annotations
 from atriakit.models.ecg_data import ECGData
 from atriakit.preprocessing.signals import SignalPreprocessor
-from atriakit.io import AnnotationsLoader
 
 _STD_12 = {"I":0,"II":1,"III":2,"aVR":3,"aVL":4,"aVF":5,"V1":6,"V2":7,"V3":8,"V4":9,"V5":10,"V6":11}
 
@@ -64,10 +65,17 @@ def test_cache_different_global_baseline_onsets_create_distinct_entries():
 
     def _make_ann(onset):
         return AnnotationsLoader().from_dataframe(
-            __import__("pandas").DataFrame([{
-                "lead": "I", "onset": onset, "offset": onset + 10,
-                "p_wave_id": 1, "file_path": "rec1",
-            }])
+            __import__("pandas").DataFrame(
+                [
+                    {
+                        AnnotationSchema.LEAD: "I",
+                        AnnotationSchema.ONSET: onset,
+                        AnnotationSchema.OFFSET: onset + 10,
+                        AnnotationSchema.P_WAVE_ID: 1,
+                        AnnotationSchema.FILE_PATH: "rec1",
+                    }
+                ]
+            )
         )
 
     preprocessor = SignalPreprocessor(

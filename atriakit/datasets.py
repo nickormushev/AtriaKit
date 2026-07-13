@@ -7,6 +7,7 @@ Requires neurokit2, which is not installed by default::
     create_demo_data()                       # writes to ./demo_data/
     create_demo_data(output_dir="./my_data")
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,6 +18,8 @@ import pydicom
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 from pydicom.sequence import Sequence
 from pydicom.uid import generate_uid
+
+from atriakit.models.annotation_schema import AnnotationSchema
 
 LEADS = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
 FS = 500
@@ -31,15 +34,34 @@ _LEAD_SCALES = {
 _MV_TO_RAW = 1000  # 1 mV → 1000 int16 units; sensitivity = 0.001 mV/unit
 
 DEMO_RECORDINGS = [
-    {"heart_rate": 60, "patient_id": "DEMO001", "seed": 0, "date": "20240101", "time": "090000"},
-    {"heart_rate": 75, "patient_id": "DEMO002", "seed": 1, "date": "20240615", "time": "143000"},
-    {"heart_rate": 90, "patient_id": "DEMO003", "seed": 2, "date": "20241201", "time": "111500"},
+    {
+        "heart_rate": 60,
+        AnnotationSchema.PATIENT_ID: "DEMO001",
+        "seed": 0,
+        "date": "20240101",
+        "time": "090000",
+    },
+    {
+        "heart_rate": 75,
+        AnnotationSchema.PATIENT_ID: "DEMO002",
+        "seed": 1,
+        "date": "20240615",
+        "time": "143000",
+    },
+    {
+        "heart_rate": 90,
+        AnnotationSchema.PATIENT_ID: "DEMO003",
+        "seed": 2,
+        "date": "20241201",
+        "time": "111500",
+    },
 ]
 
 
 def _require_neurokit():
     try:
         import neurokit2 as nk
+
         return nk
     except ImportError:
         raise SystemExit(
@@ -53,7 +75,9 @@ def simulate_12lead(heart_rate: int, noise: float = 0.02, seed: int = 0) -> np.n
     nk = _require_neurokit()
     rng = np.random.default_rng(seed)
     lead_ii = np.array(
-        nk.ecg_simulate(duration=DURATION, sampling_rate=FS, heart_rate=heart_rate, noise=noise)
+        nk.ecg_simulate(
+            duration=DURATION, sampling_rate=FS, heart_rate=heart_rate, noise=noise
+        )
     )
     ecg = np.zeros((12, len(lead_ii)))
     for i, lead in enumerate(LEADS):
@@ -109,8 +133,10 @@ def to_dicom(
     wf.SamplingFrequency = float(FS)
 
     n_ch, n_samples = ecg.shape
-    wf.add_new(pydicom.tag.Tag(0x003A, 0x0005), "US", n_ch)       # NumberOfChannels
-    wf.add_new(pydicom.tag.Tag(0x003A, 0x0010), "UL", n_samples)  # NumberOfWaveformSamples
+    wf.add_new(pydicom.tag.Tag(0x003A, 0x0005), "US", n_ch)  # NumberOfChannels
+    wf.add_new(
+        pydicom.tag.Tag(0x003A, 0x0010), "UL", n_samples
+    )  # NumberOfWaveformSamples
     wf.WaveformBitsAllocated = 16
     wf.WaveformSampleInterpretation = "SS"
 
@@ -146,13 +172,25 @@ def detect_p_waves(ecg_12lead: np.ndarray) -> list[dict]:
     lead_ii = ecg_12lead[1]
     signals, _ = nk.ecg_process(lead_ii, sampling_rate=FS)
 
-    p_onset_mask  = signals.get("ECG_P_Onsets",  pd.Series(0, index=signals.index)).fillna(0).astype(int)
-    p_offset_mask = signals.get("ECG_P_Offsets", pd.Series(0, index=signals.index)).fillna(0).astype(int)
-    r_peak_mask   = signals.get("ECG_R_Peaks",   pd.Series(0, index=signals.index)).fillna(0).astype(int)
+    p_onset_mask = (
+        signals.get("ECG_P_Onsets", pd.Series(0, index=signals.index))
+        .fillna(0)
+        .astype(int)
+    )
+    p_offset_mask = (
+        signals.get("ECG_P_Offsets", pd.Series(0, index=signals.index))
+        .fillna(0)
+        .astype(int)
+    )
+    r_peak_mask = (
+        signals.get("ECG_R_Peaks", pd.Series(0, index=signals.index))
+        .fillna(0)
+        .astype(int)
+    )
 
-    onsets  = np.where(p_onset_mask  == 1)[0]
+    onsets = np.where(p_onset_mask == 1)[0]
     offsets = np.where(p_offset_mask == 1)[0]
-    r_peaks = np.where(r_peak_mask   == 1)[0]
+    r_peaks = np.where(r_peak_mask == 1)[0]
 
     records: list[dict] = []
     used_offsets: set[int] = set()
@@ -166,7 +204,13 @@ def detect_p_waves(ecg_12lead: np.ndarray) -> list[dict]:
         used_offsets.add(offset)
         following_r = r_peaks[r_peaks > offset]
         qrs_onset = int(following_r[0]) - 20 if len(following_r) else -1
-        records.append({"onset": int(onset), "offset": int(offset), "qrs_onset": qrs_onset})
+        records.append(
+            {
+                AnnotationSchema.ONSET: int(onset),
+                AnnotationSchema.OFFSET: int(offset),
+                AnnotationSchema.QRS_ONSET: qrs_onset,
+            }
+        )
 
     return records
 
@@ -186,16 +230,20 @@ def build_annotations(
     rows = []
     for p_wave_id, pw in enumerate(p_waves):
         for lead in LEADS:
-            rows.append({
-                "patient_id": patient_id,
-                "lead":       lead,
-                "p_wave_id":  p_wave_id,
-                "onset":      pw["onset"]  + int(rng.integers(-2, 3)),
-                "offset":     pw["offset"] + int(rng.integers(-2, 3)),
-                "qrs_onset":  pw["qrs_onset"],
-                "ignore":     False,
-                "file_path":  file_path,
-            })
+            rows.append(
+                {
+                    AnnotationSchema.PATIENT_ID: patient_id,
+                    AnnotationSchema.LEAD: lead,
+                    AnnotationSchema.P_WAVE_ID: p_wave_id,
+                    AnnotationSchema.ONSET: pw[AnnotationSchema.ONSET]
+                    + int(rng.integers(-2, 3)),
+                    AnnotationSchema.OFFSET: pw[AnnotationSchema.OFFSET]
+                    + int(rng.integers(-2, 3)),
+                    AnnotationSchema.QRS_ONSET: pw[AnnotationSchema.QRS_ONSET],
+                    AnnotationSchema.IGNORE: False,
+                    AnnotationSchema.FILE_PATH: file_path,
+                }
+            )
     return pd.DataFrame(rows)
 
 
@@ -210,7 +258,7 @@ def generate(output_dir: str | Path) -> Path:
 
     all_annotations: list[pd.DataFrame] = []
     for cfg in DEMO_RECORDINGS:
-        patient_id = cfg["patient_id"]
+        patient_id = cfg[AnnotationSchema.PATIENT_ID]
         print(f"[{patient_id}] Simulating 12-lead ECG at {cfg['heart_rate']} bpm …")
 
         ecg = simulate_12lead(cfg["heart_rate"], seed=cfg["seed"])
@@ -223,11 +271,16 @@ def generate(output_dir: str | Path) -> Path:
         p_waves = detect_p_waves(ecg)
         print(f"  Detected {len(p_waves)} P-waves")
 
-        anns = build_annotations(f"{patient_id}.dcm", patient_id, p_waves, seed=cfg["seed"])
+        anns = build_annotations(
+            f"{patient_id}.dcm", patient_id, p_waves, seed=cfg["seed"]
+        )
         all_annotations.append(anns)
 
     combined = pd.concat(all_annotations, ignore_index=True)
     ann_path = out / "demo_annotations.csv"
     combined.to_csv(ann_path, index=False)
-    print(f"\nSaved {ann_path} ({len(combined)} rows across {combined['patient_id'].nunique()} patients)")
+    print(
+        f"\nSaved {ann_path} "
+        f"({len(combined)} rows across {combined[AnnotationSchema.PATIENT_ID].nunique()} patients)"
+    )
     return out

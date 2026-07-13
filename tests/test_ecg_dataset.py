@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from atriakit.models.annotations import Annotations
+from atriakit.models.annotation_schema import AnnotationSchema
 from atriakit.configs.signal_preprocessor_config import default_signal_preprocessor_config
 from atriakit.io import AnnotationsLoader
 from atriakit.processing.dataset import ECGDataset
@@ -43,13 +44,13 @@ def _ann(df: pd.DataFrame) -> Annotations:
 
 def test_calculate_mean_std_uses_configured_preprocessor():
     ann = _ann(pd.DataFrame({
-        "file_path": ["a.dcm", "a.dcm"],
-        "lead": ["I", "I"],
-        "p_wave_id": [1, 2],
-        "onset": [200, 400],
-        "offset": [250, 450],
-        "qrs_onset": [210, 410],
-        "type": ["After", "Before"],
+        AnnotationSchema.FILE_PATH: ["a.dcm", "a.dcm"],
+        AnnotationSchema.LEAD: ["I", "I"],
+        AnnotationSchema.P_WAVE_ID: [1, 2],
+        AnnotationSchema.ONSET: [200, 400],
+        AnnotationSchema.OFFSET: [250, 450],
+        AnnotationSchema.QRS_ONSET: [210, 410],
+        AnnotationSchema.TYPE: ["After", "Before"],
     }))
 
     processor = ECGDataset(dataset_dir="dummy", loader=_MockLoader())
@@ -64,13 +65,13 @@ def test_calculate_mean_std_uses_configured_preprocessor():
 
 def test_calculate_mean_std_with_bandpass():
     ann = _ann(pd.DataFrame({
-        "file_path": ["b.dcm"],
-        "lead": ["I"],
-        "p_wave_id": [1],
-        "onset": [300],
-        "offset": [350],
-        "qrs_onset": [310],
-        "type": ["After"],
+        AnnotationSchema.FILE_PATH: ["b.dcm"],
+        AnnotationSchema.LEAD: ["I"],
+        AnnotationSchema.P_WAVE_ID: [1],
+        AnnotationSchema.ONSET: [300],
+        AnnotationSchema.OFFSET: [350],
+        AnnotationSchema.QRS_ONSET: [310],
+        AnnotationSchema.TYPE: ["After"],
     }))
 
     processor = ECGDataset(dataset_dir="dummy", loader=_MockLoader())
@@ -90,13 +91,13 @@ def test_calculate_mean_std_with_bandpass():
 
 def test_calculate_mean_std_p_waves():
     ann = _ann(pd.DataFrame({
-        "file_path": ["a.dcm", "a.dcm"],
-        "lead": ["I", "I"],
-        "p_wave_id": [1, 2],
-        "onset": [200, 400],
-        "offset": [250, 450],
-        "qrs_onset": [210, 410],
-        "type": ["After", "Before"],
+        AnnotationSchema.FILE_PATH: ["a.dcm", "a.dcm"],
+        AnnotationSchema.LEAD: ["I", "I"],
+        AnnotationSchema.P_WAVE_ID: [1, 2],
+        AnnotationSchema.ONSET: [200, 400],
+        AnnotationSchema.OFFSET: [250, 450],
+        AnnotationSchema.QRS_ONSET: [210, 410],
+        AnnotationSchema.TYPE: ["After", "Before"],
     }))
 
     processor = ECGDataset(dataset_dir="dummy", loader=_MockLoader())

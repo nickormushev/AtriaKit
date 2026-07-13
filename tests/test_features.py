@@ -10,11 +10,13 @@ import pytest
 
 from atriakit.configs.segment_config import SegmentConfig
 from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
-from atriakit.models.annotations import Annotations
-from atriakit.io import AnnotationsLoader
 from atriakit.feature_calculator import FeatureCalculators
-from atriakit.features.area import _find_inflection, ptf_auto as ptf_auto_fn
+from atriakit.features.area import _find_inflection
+from atriakit.features.area import ptf_auto as ptf_auto_fn
 from atriakit.features.vcg import vcg_axis_angles
+from atriakit.io import AnnotationsLoader
+from atriakit.models.annotation_schema import AnnotationSchema
+from atriakit.models.annotations import Annotations
 from atriakit.preprocessing.signals import SignalPreprocessor
 from atriakit.processing.segment_processor import SegmentProcessor
 
@@ -67,35 +69,39 @@ def make_mock_ecg_data(lead_signals, sampling_frequency=500):
 
 @pytest.fixture
 def sample_annotations():
-    return Annotations(pd.DataFrame(
-        {
-            "lead": ["I", "I", "II"],
-            "onset": [0, 2, 0],
-            "offset": [2, 4, 3],
-            "p_wave_id": [1, 2, 3],
-            "file_path": ["rec1", "rec1", "rec1"],
-            "type": ["Before", "Before", "Before"],
-        }
-    ))
+    return Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.LEAD: ["I", "I", "II"],
+                AnnotationSchema.ONSET: [0, 2, 0],
+                AnnotationSchema.OFFSET: [2, 4, 3],
+                AnnotationSchema.P_WAVE_ID: [1, 2, 3],
+                AnnotationSchema.FILE_PATH: ["rec1", "rec1", "rec1"],
+                AnnotationSchema.TYPE: ["Before", "Before", "Before"],
+            }
+        )
+    )
 
 
 @pytest.fixture
 def sample_annotations_with_inflection():
-    return Annotations(pd.DataFrame(
-        {
-            "lead": ["I", "II", "I"],
-            "onset": [1, 0, 0],
-            "offset": [8, 5, 5],
-            "p_wave_id": [1, 2, 3],
-            "file_path": ["rec1", "rec1", "rec1"],
-            "inflection_point": [4, 3, -1],
-            "p_wave_morphology": [
-                "Biphasic",
-                "Biphasic",
-                "Monophasic Positive",
-            ],
-        }
-    ))
+    return Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.LEAD: ["I", "II", "I"],
+                AnnotationSchema.ONSET: [1, 0, 0],
+                AnnotationSchema.OFFSET: [8, 5, 5],
+                AnnotationSchema.P_WAVE_ID: [1, 2, 3],
+                AnnotationSchema.FILE_PATH: ["rec1", "rec1", "rec1"],
+                "inflection_point": [4, 3, -1],
+                "p_wave_morphology": [
+                    "Biphasic",
+                    "Biphasic",
+                    "Monophasic Positive",
+                ],
+            }
+        )
+    )
 
 
 @pytest.fixture
@@ -124,12 +130,26 @@ def feature_calculator_inflection():
 
 @pytest.fixture
 def sample_annotations_axis():
-    return Annotations(pd.DataFrame(
-        [
-            {"lead": "I", "onset": 50, "offset": 60, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "aVF", "onset": 52, "offset": 62, "p_wave_id": 1, "file_path": "rec1"},
-        ]
-    ))
+    return Annotations(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: "I",
+                    AnnotationSchema.ONSET: 50,
+                    AnnotationSchema.OFFSET: 60,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "aVF",
+                    AnnotationSchema.ONSET: 52,
+                    AnnotationSchema.OFFSET: 62,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+            ]
+        )
+    )
 
 
 @pytest.fixture
@@ -185,23 +205,25 @@ def ecg_processor_with_noise():
 
 @pytest.fixture
 def sample_annotations_fragments():
-    return Annotations(pd.DataFrame(
-        {
-            "lead": ["I"],
-            "onset": [0],
-            "offset": [7],
-            "p_wave_id": [1],
-            "file_path": ["rec1"],
-        }
-    ))
+    return Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.LEAD: ["I"],
+                AnnotationSchema.ONSET: [0],
+                AnnotationSchema.OFFSET: [7],
+                AnnotationSchema.P_WAVE_ID: [1],
+                AnnotationSchema.FILE_PATH: ["rec1"],
+            }
+        )
+    )
 
 
 @pytest.fixture
 def feature_calculator_fragments():
     feature_calculator = make_feature_calculator()
-    feature_calculator.estimate_noise = (
-        lambda annotations, ecg_data, lead_signal=None, window_in_ms=None, sd_threshold=3: [0.01]
-    )
+    feature_calculator.estimate_noise = lambda annotations, ecg_data, lead_signal=None, window_in_ms=None, sd_threshold=3: [
+        0.01
+    ]
     feature_calculator.noise = [0.01]
 
     signal = np.array([0.01, 0.02, -0.03, 0.05, -0.01, 0.0, 0.02, -0.02])
@@ -218,19 +240,36 @@ def feature_calculator_morphology():
 
     ecg_data = make_mock_ecg_data({"I": ecg[0], "II": ecg[1]})
     feature_calculator.estimate_noise = (
-        lambda annotations, ecg_data, lead_signal=None, window_in_ms=None, sd_threshold=3: [0.0] * 12
+        lambda annotations, ecg_data, lead_signal=None, window_in_ms=None, sd_threshold=3: [
+            0.0
+        ]
+        * 12
     )
     return feature_calculator, ecg_data
 
 
 @pytest.fixture
 def morphology_annotations():
-    return Annotations(pd.DataFrame(
-        [
-            {"lead": "I", "onset": 0, "offset": 4, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "II", "onset": 0, "offset": 9, "p_wave_id": 2, "file_path": "rec1"},
-        ]
-    ))
+    return Annotations(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: "I",
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 4,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "II",
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 9,
+                    AnnotationSchema.P_WAVE_ID: 2,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+            ]
+        )
+    )
 
 
 @pytest.fixture
@@ -255,19 +294,75 @@ def feature_calculator_heart_rate():
 
 @pytest.fixture
 def hr_annotations():
-    return AnnotationsLoader().from_dataframe(pd.DataFrame(
-        [
-            {"lead": "II", "onset": 40, "offset": 45, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "II", "onset": 140, "offset": 145, "p_wave_id": 2, "file_path": "rec1"},
-            {"lead": "II", "onset": 240, "offset": 245, "p_wave_id": 3, "file_path": "rec1"},
-            {"lead": "V5", "onset": 40, "offset": 45, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "V5", "onset": 140, "offset": 145, "p_wave_id": 2, "file_path": "rec1"},
-            {"lead": "V5", "onset": 240, "offset": 245, "p_wave_id": 3, "file_path": "rec1"},
-            {"lead": "V6", "onset": 40, "offset": 45, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "V6", "onset": 140, "offset": 145, "p_wave_id": 2, "file_path": "rec1"},
-            {"lead": "V6", "onset": 240, "offset": 245, "p_wave_id": 3, "file_path": "rec1"},
-        ]
-    ))
+    return AnnotationsLoader().from_dataframe(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: "II",
+                    AnnotationSchema.ONSET: 40,
+                    AnnotationSchema.OFFSET: 45,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "II",
+                    AnnotationSchema.ONSET: 140,
+                    AnnotationSchema.OFFSET: 145,
+                    AnnotationSchema.P_WAVE_ID: 2,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "II",
+                    AnnotationSchema.ONSET: 240,
+                    AnnotationSchema.OFFSET: 245,
+                    AnnotationSchema.P_WAVE_ID: 3,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "V5",
+                    AnnotationSchema.ONSET: 40,
+                    AnnotationSchema.OFFSET: 45,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "V5",
+                    AnnotationSchema.ONSET: 140,
+                    AnnotationSchema.OFFSET: 145,
+                    AnnotationSchema.P_WAVE_ID: 2,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "V5",
+                    AnnotationSchema.ONSET: 240,
+                    AnnotationSchema.OFFSET: 245,
+                    AnnotationSchema.P_WAVE_ID: 3,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "V6",
+                    AnnotationSchema.ONSET: 40,
+                    AnnotationSchema.OFFSET: 45,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "V6",
+                    AnnotationSchema.ONSET: 140,
+                    AnnotationSchema.OFFSET: 145,
+                    AnnotationSchema.P_WAVE_ID: 2,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "V6",
+                    AnnotationSchema.ONSET: 240,
+                    AnnotationSchema.OFFSET: 245,
+                    AnnotationSchema.P_WAVE_ID: 3,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+            ]
+        )
+    )
 
 
 @pytest.fixture
@@ -336,7 +431,9 @@ def test_ptf_invalid_inflection(feature_calculator_inflection, sample_annotation
         feature_calculator.ptf(invalid_annotations, ecg_data)
 
 
-def test_ptf_no_inflection_falls_back_to_auto(feature_calculator_inflection, sample_annotations):
+def test_ptf_no_inflection_falls_back_to_auto(
+    feature_calculator_inflection, sample_annotations
+):
     # Without inflection_point / p_wave_morphology columns, ptf falls back to unsupervised mode.
     feature_calculator, ecg_data = feature_calculator_inflection
     result = feature_calculator.ptf(sample_annotations, ecg_data)
@@ -390,7 +487,17 @@ def test_area_to_duration_ratio_zero_duration_raises():
     ecg_data = MagicMock()
     fc.area = MagicMock(return_value=np.array([1.0, 2.0]))
     fc.duration = MagicMock(return_value=np.array([0.1, 0.0]))
-    annotations = Annotations(pd.DataFrame({"lead": ["I", "I"], "onset": [0, 10], "offset": [5, 15], "p_wave_id": [0, 1], "file_path": ["rec1", "rec1"]}))
+    annotations = Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.LEAD: ["I", "I"],
+                AnnotationSchema.ONSET: [0, 10],
+                AnnotationSchema.OFFSET: [5, 15],
+                AnnotationSchema.P_WAVE_ID: [0, 1],
+                AnnotationSchema.FILE_PATH: ["rec1", "rec1"],
+            }
+        )
+    )
 
     with pytest.raises(ValueError, match="zero"):
         fc.area_to_duration_ratio(annotations, ecg_data)
@@ -427,15 +534,17 @@ def test_estimate_noise_basic(ecg_processor_with_noise):
     p_offsets = np.where(signals["ECG_P_Offsets"].to_numpy())[0]
     min_len = min(len(p_onsets), len(p_offsets))
 
-    annotations = Annotations(pd.DataFrame(
-        {
-            "onset": p_onsets[:min_len].astype(int),
-            "offset": p_offsets[:min_len].astype(int),
-            "lead": ["I"] * min_len,
-            "p_wave_id": list(range(min_len)),
-            "file_path": ["rec1"] * min_len,
-        }
-    ))
+    annotations = Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.ONSET: p_onsets[:min_len].astype(int),
+                AnnotationSchema.OFFSET: p_offsets[:min_len].astype(int),
+                AnnotationSchema.LEAD: ["I"] * min_len,
+                AnnotationSchema.P_WAVE_ID: list(range(min_len)),
+                AnnotationSchema.FILE_PATH: ["rec1"] * min_len,
+            }
+        )
+    )
     processor.max_absolute_amplitude.return_value = [np.max(raw_signal)] * min_len
 
     noise_estimates = processor.estimate_noise(annotations, ecg_data)
@@ -456,12 +565,26 @@ def test_estimate_noise_empty_annotations(ecg_processor_with_noise):
 
 def test_estimate_noise_vcg_annotations_uses_vcg_signal():
     feature_calculator = make_feature_calculator()
-    annotations = Annotations(pd.DataFrame(
-        [
-            {"lead": "VCG", "onset": 5, "offset": 7, "p_wave_id": 0, "file_path": "rec1"},
-            {"lead": "VCG", "onset": 12, "offset": 14, "p_wave_id": 1, "file_path": "rec1"},
-        ]
-    ))
+    annotations = Annotations(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: "VCG",
+                    AnnotationSchema.ONSET: 5,
+                    AnnotationSchema.OFFSET: 7,
+                    AnnotationSchema.P_WAVE_ID: 0,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "VCG",
+                    AnnotationSchema.ONSET: 12,
+                    AnnotationSchema.OFFSET: 14,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+            ]
+        )
+    )
     ecg_data = MagicMock()
     ecg_data.get_sampling_frequency.return_value = 1000
     ecg_data.get_leads.return_value = ["I", "II"]
@@ -470,7 +593,23 @@ def test_estimate_noise_vcg_annotations_uses_vcg_signal():
     )
 
     vcg_signal = np.array(
-        [0.0, 0.05, -0.05, 0.05, -0.05, 0.0, 1.0, 0.0, -1.0, 0.0, 0.03, -0.03, 0.0, 0.0, 0.0]
+        [
+            0.0,
+            0.05,
+            -0.05,
+            0.05,
+            -0.05,
+            0.0,
+            1.0,
+            0.0,
+            -1.0,
+            0.0,
+            0.03,
+            -0.03,
+            0.0,
+            0.0,
+            0.0,
+        ]
     )
 
     noise_estimates = feature_calculator.estimate_noise(
@@ -512,7 +651,10 @@ def test_fragments_method(feature_calculator_fragments, sample_annotations_fragm
         assert width > 0
 
     expected_width = np.mean(
-        [(fragment[1] - fragment[0]) / ecg_data.get_sampling_frequency() for fragment in fragments_list]
+        [
+            (fragment[1] - fragment[0]) / ecg_data.get_sampling_frequency()
+            for fragment in fragments_list
+        ]
     )
     expected_amplitude = np.mean(
         [np.abs(fragment[3] - fragment[2]) for fragment in fragments_list]
@@ -522,7 +664,9 @@ def test_fragments_method(feature_calculator_fragments, sample_annotations_fragm
     np.testing.assert_almost_equal(amplitudes[0], expected_amplitude)
 
 
-def test_fragments_method_normalized(feature_calculator_fragments, sample_annotations_fragments):
+def test_fragments_method_normalized(
+    feature_calculator_fragments, sample_annotations_fragments
+):
     feature_calculator, ecg_data = feature_calculator_fragments
 
     count, widths, amplitudes = feature_calculator.fragment_metrics(
@@ -530,22 +674,31 @@ def test_fragments_method_normalized(feature_calculator_fragments, sample_annota
         ecg_data,
         normalize_by_duration=True,
     )
-    fragments_list = feature_calculator.fragments(sample_annotations_fragments, ecg_data)[0]
+    fragments_list = feature_calculator.fragments(
+        sample_annotations_fragments, ecg_data
+    )[0]
 
     duration = (
-        sample_annotations_fragments.iloc[0]["offset"]
-        - sample_annotations_fragments.iloc[0]["onset"]
+        sample_annotations_fragments.iloc[0][AnnotationSchema.OFFSET]
+        - sample_annotations_fragments.iloc[0][AnnotationSchema.ONSET]
     ) / ecg_data.get_sampling_frequency()
     normalization_factor = 0.1 / duration
 
     np.testing.assert_almost_equal(count[0], len(fragments_list) * normalization_factor)
 
-    expected_width = np.mean(
-        [(fragment[1] - fragment[0]) / ecg_data.get_sampling_frequency() for fragment in fragments_list]
-    ) * normalization_factor
-    expected_amplitude = np.mean(
-        [np.abs(fragment[3] - fragment[2]) for fragment in fragments_list]
-    ) * normalization_factor
+    expected_width = (
+        np.mean(
+            [
+                (fragment[1] - fragment[0]) / ecg_data.get_sampling_frequency()
+                for fragment in fragments_list
+            ]
+        )
+        * normalization_factor
+    )
+    expected_amplitude = (
+        np.mean([np.abs(fragment[3] - fragment[2]) for fragment in fragments_list])
+        * normalization_factor
+    )
 
     np.testing.assert_almost_equal(widths[0], expected_width)
     np.testing.assert_almost_equal(amplitudes[0], expected_amplitude)
@@ -577,15 +730,17 @@ def test_atrial_rate():
     ecg_data = MagicMock()
     ecg_data.get_sampling_frequency.return_value = 500
 
-    annotations = Annotations(pd.DataFrame(
-        {
-            "lead": ["I", "II", "I", "II"],
-            "onset": [0, 2, 100, 102],
-            "offset": [5, 7, 105, 107],
-            "p_wave_id": [1, 1, 2, 2],
-            "file_path": ["rec1", "rec1", "rec1", "rec1"],
-        }
-    ))
+    annotations = Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.LEAD: ["I", "II", "I", "II"],
+                AnnotationSchema.ONSET: [0, 2, 100, 102],
+                AnnotationSchema.OFFSET: [5, 7, 105, 107],
+                AnnotationSchema.P_WAVE_ID: [1, 1, 2, 2],
+                AnnotationSchema.FILE_PATH: ["rec1", "rec1", "rec1", "rec1"],
+            }
+        )
+    )
 
     heart_rate = feature_calculator.atrial_rate(annotations, ecg_data)
 
@@ -616,31 +771,53 @@ def test_vcg_fragment_metrics_normalize_by_duration(monkeypatch):
     fc._get_vcg_signal = MagicMock(return_value=np.ones((3, 50)))
     fc._vcg_fragments_from_signal = MagicMock(return_value=[[], []])
     fc.duration = MagicMock(return_value=durations)
-    monkeypatch.setattr("atriakit.feature_calculator.fragment_count", lambda frags: raw_counts)
-    monkeypatch.setattr("atriakit.feature_calculator.fragment_width", lambda frags, fs: raw_widths)
-    monkeypatch.setattr("atriakit.feature_calculator.fragment_amplitude", lambda frags: raw_amplitudes)
+    monkeypatch.setattr(
+        "atriakit.feature_calculator.fragment_count", lambda frags: raw_counts
+    )
+    monkeypatch.setattr(
+        "atriakit.feature_calculator.fragment_width", lambda frags, fs: raw_widths
+    )
+    monkeypatch.setattr(
+        "atriakit.feature_calculator.fragment_amplitude", lambda frags: raw_amplitudes
+    )
 
-    annotations = Annotations(pd.DataFrame({"lead": ["VCG", "VCG"], "onset": [0, 10], "offset": [5, 15], "p_wave_id": [0, 1], "file_path": ["rec1", "rec2"]}))
-    counts, widths, amplitudes = fc.vcg_fragments(annotations, ecg_data, normalize_by_duration=True)
+    annotations = Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.LEAD: ["VCG", "VCG"],
+                AnnotationSchema.ONSET: [0, 10],
+                AnnotationSchema.OFFSET: [5, 15],
+                AnnotationSchema.P_WAVE_ID: [0, 1],
+                AnnotationSchema.FILE_PATH: ["rec1", "rec2"],
+            }
+        )
+    )
+    counts, widths, amplitudes = fc.vcg_fragments(
+        annotations, ecg_data, normalize_by_duration=True
+    )
 
     np.testing.assert_allclose(counts, np.array(raw_counts) * expected_norm_factors)
     np.testing.assert_allclose(widths, np.array(raw_widths) * expected_norm_factors)
-    np.testing.assert_allclose(amplitudes, np.array(raw_amplitudes) * expected_norm_factors)
+    np.testing.assert_allclose(
+        amplitudes, np.array(raw_amplitudes) * expected_norm_factors
+    )
 
 
 def test_vcg_area_calls_ecgdata(feature_calculator_vcg_area):
     feature_calculator, ecg_data = feature_calculator_vcg_area
 
-    annotations = AnnotationsLoader().from_dataframe(pd.DataFrame(
-        {
-            "file_path": ["rec1", "rec1", "rec1"],
-            "lead": ["I", "II", "III"],
-            "onset": [1, 2, 0],
-            "offset": [3, 4, 2],
-            "p_wave_id": [1, 1, 1],
-            "type": ["Before", "Before", "Before"],
-        }
-    ))
+    annotations = AnnotationsLoader().from_dataframe(
+        pd.DataFrame(
+            {
+                AnnotationSchema.FILE_PATH: ["rec1", "rec1", "rec1"],
+                AnnotationSchema.LEAD: ["I", "II", "III"],
+                AnnotationSchema.ONSET: [1, 2, 0],
+                AnnotationSchema.OFFSET: [3, 4, 2],
+                AnnotationSchema.P_WAVE_ID: [1, 1, 1],
+                AnnotationSchema.TYPE: ["Before", "Before", "Before"],
+            }
+        )
+    )
 
     fake_vcg_segment = np.array(
         [
@@ -677,19 +854,21 @@ def test_vcg_eigenfeatures_with_grouped_onsets_offsets():
     )
     feature_calculator._get_vcg_signal = MagicMock(return_value=vcg_signal)
 
-    annotations = AnnotationsLoader().from_dataframe(pd.DataFrame(
-        {
-            "file_path": ["rec1", "rec1", "rec1"],
-            "lead": ["I", "II", "III"],
-            "onset": [1, 2, 0],
-            "offset": [3, 4, 2],
-            "qrs_onset": [4, 5, 3],
-            "onset_g": [0, 0, 0],
-            "offset_g": [4, 4, 4],
-            "p_wave_id": [1, 1, 1],
-            "type": ["Before", "Before", "Before"],
-        }
-    ))
+    annotations = AnnotationsLoader().from_dataframe(
+        pd.DataFrame(
+            {
+                AnnotationSchema.FILE_PATH: ["rec1", "rec1", "rec1"],
+                AnnotationSchema.LEAD: ["I", "II", "III"],
+                AnnotationSchema.ONSET: [1, 2, 0],
+                AnnotationSchema.OFFSET: [3, 4, 2],
+                AnnotationSchema.QRS_ONSET: [4, 5, 3],
+                "onset_g": [0, 0, 0],
+                "offset_g": [4, 4, 4],
+                AnnotationSchema.P_WAVE_ID: [1, 1, 1],
+                AnnotationSchema.TYPE: ["Before", "Before", "Before"],
+            }
+        )
+    )
 
     segment = vcg_signal[
         :, annotations.iloc[0]["onset_g"] : annotations.iloc[0]["offset_g"] + 1
@@ -722,6 +901,7 @@ def test_vcg_eigenfeatures_with_grouped_onsets_offsets():
 
 
 # ── vcg_axis_angles ───────────────────────────────────────────────────────────
+
 
 def _seg(x, y, z):
     """Make a (3, 1) segment with a single time step."""
@@ -781,16 +961,18 @@ def test_get_onset_offset_angle_onset_baseline_and_value():
     feature_calculator = make_feature_calculator(baseline_correction_type="onset")
     ecg_data = make_mock_ecg_data({"I": np.array([5.0, 7.0])}, sampling_frequency=1000)
 
-    annotations = Annotations(pd.DataFrame(
-        {
-            "lead": ["I"],
-            "onset": [0],
-            "offset": [1],
-            "p_wave_id": [1],
-            "file_path": ["rec1"],
-            "type": ["Before"],
-        }
-    ))
+    annotations = Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.LEAD: ["I"],
+                AnnotationSchema.ONSET: [0],
+                AnnotationSchema.OFFSET: [1],
+                AnnotationSchema.P_WAVE_ID: [1],
+                AnnotationSchema.FILE_PATH: ["rec1"],
+                AnnotationSchema.TYPE: ["Before"],
+            }
+        )
+    )
 
     angles = feature_calculator.get_onset_offset_angle(annotations, ecg_data)
 
@@ -805,13 +987,33 @@ def test_get_onset_offset_angle_onset_baseline_and_value():
 
 def test_complexity(feature_calculator_complexity):
     feature_calculator, ecg_data = feature_calculator_complexity
-    annotations = Annotations(pd.DataFrame(
-        [
-            {"lead": "I", "onset": 0, "offset": 4, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "II", "onset": 0, "offset": 8, "p_wave_id": 2, "file_path": "rec1"},
-            {"lead": "III", "onset": 0, "offset": 9, "p_wave_id": 3, "file_path": "rec1"},
-        ]
-    ))
+    annotations = Annotations(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: "I",
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 4,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "II",
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 8,
+                    AnnotationSchema.P_WAVE_ID: 2,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "III",
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 9,
+                    AnnotationSchema.P_WAVE_ID: 3,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+            ]
+        )
+    )
 
     complexity = feature_calculator.complexity(annotations, ecg_data)
 
@@ -823,8 +1025,24 @@ def test_r_peaks_for_lead(feature_calculator_rpeaks):
     lead_signal = ecg_data.get_lead_signal("II")
     lead_annotations = pd.DataFrame(
         [
-            {"lead": "II", "onset": 0, "offset": 2, "onset_original": 0, "offset_original": 2, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "II", "onset": 5, "offset": 6, "onset_original": 5, "offset_original": 6, "p_wave_id": 2, "file_path": "rec1"},
+            {
+                AnnotationSchema.LEAD: "II",
+                AnnotationSchema.ONSET: 0,
+                AnnotationSchema.OFFSET: 2,
+                AnnotationSchema.ONSET_ORIGINAL: 0,
+                AnnotationSchema.OFFSET_ORIGINAL: 2,
+                AnnotationSchema.P_WAVE_ID: 1,
+                AnnotationSchema.FILE_PATH: "rec1",
+            },
+            {
+                AnnotationSchema.LEAD: "II",
+                AnnotationSchema.ONSET: 5,
+                AnnotationSchema.OFFSET: 6,
+                AnnotationSchema.ONSET_ORIGINAL: 5,
+                AnnotationSchema.OFFSET_ORIGINAL: 6,
+                AnnotationSchema.P_WAVE_ID: 2,
+                AnnotationSchema.FILE_PATH: "rec1",
+            },
         ]
     )
 
@@ -839,16 +1057,54 @@ def test_r_peaks_for_lead(feature_calculator_rpeaks):
 
 def test_find_r_peaks_median(feature_calculator_rpeaks):
     feature_calculator, ecg_data = feature_calculator_rpeaks
-    annotations = AnnotationsLoader().from_dataframe(pd.DataFrame(
-        [
-            {"lead": "II", "onset": 0, "offset": 2, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "II", "onset": 5, "offset": 6, "p_wave_id": 2, "file_path": "rec1"},
-            {"lead": "V5", "onset": 0, "offset": 2, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "V5", "onset": 5, "offset": 6, "p_wave_id": 2, "file_path": "rec1"},
-            {"lead": "V6", "onset": 0, "offset": 2, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "V6", "onset": 5, "offset": 6, "p_wave_id": 2, "file_path": "rec1"},
-        ]
-    ))
+    annotations = AnnotationsLoader().from_dataframe(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: "II",
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 2,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "II",
+                    AnnotationSchema.ONSET: 5,
+                    AnnotationSchema.OFFSET: 6,
+                    AnnotationSchema.P_WAVE_ID: 2,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "V5",
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 2,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "V5",
+                    AnnotationSchema.ONSET: 5,
+                    AnnotationSchema.OFFSET: 6,
+                    AnnotationSchema.P_WAVE_ID: 2,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "V6",
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 2,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "V6",
+                    AnnotationSchema.ONSET: 5,
+                    AnnotationSchema.OFFSET: 6,
+                    AnnotationSchema.P_WAVE_ID: 2,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+            ]
+        )
+    )
 
     r_peaks_median = feature_calculator.find_r_peaks_median(
         annotations,
@@ -871,17 +1127,19 @@ def test_get_shannon_entropy(lead_signal, n_bins, expected_entropy):
     feature_calculator = make_feature_calculator()
     ecg_data = make_mock_ecg_data({"I": lead_signal})
 
-    annotations = Annotations(pd.DataFrame(
-        [
-            {
-                "lead": "I",
-                "onset": 0,
-                "offset": len(lead_signal),
-                "p_wave_id": 0,
-                "file_path": "rec1",
-            }
-        ]
-    ))
+    annotations = Annotations(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: "I",
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: len(lead_signal),
+                    AnnotationSchema.P_WAVE_ID: 0,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                }
+            ]
+        )
+    )
 
     entropy = feature_calculator.get_shannon_entropy(
         annotations,
@@ -900,12 +1158,26 @@ def test_get_shannon_entropy(lead_signal, n_bins, expected_entropy):
 
 def test_get_sample_entropy_basic():
     feature_calculator = make_feature_calculator()
-    annotations = Annotations(pd.DataFrame(
-        [
-            {"lead": "I", "p_wave_id": 0, "onset": 0, "offset": 5, "file_path": "rec1"},
-            {"lead": "I", "p_wave_id": 1, "onset": 0, "offset": 5, "file_path": "rec1"},
-        ]
-    ))
+    annotations = Annotations(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: "I",
+                    AnnotationSchema.P_WAVE_ID: 0,
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 5,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "I",
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 5,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+            ]
+        )
+    )
     segments = [
         np.array([0.0, 0.1, 0.2, 0.3, 0.4]),
         np.ones(5),
@@ -945,14 +1217,29 @@ def test_global_baseline_computed_once_for_nested_calls():
 
     feature_calculator.signal_preprocessor.set_baseline_onsets = tracking_build
 
-    annotations = Annotations(pd.DataFrame(
-        [
-            {"lead": "I", "onset": 0, "offset": 5, "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "I", "onset": 10, "offset": 15, "p_wave_id": 2, "file_path": "rec1"},
-        ]
-    ))
-    signal = np.array([0.0, 0.1, 0.3, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.2, 0.4, 0.2, 0.0, 0.0])
+    annotations = Annotations(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: "I",
+                    AnnotationSchema.ONSET: 0,
+                    AnnotationSchema.OFFSET: 5,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+                {
+                    AnnotationSchema.LEAD: "I",
+                    AnnotationSchema.ONSET: 10,
+                    AnnotationSchema.OFFSET: 15,
+                    AnnotationSchema.P_WAVE_ID: 2,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                },
+            ]
+        )
+    )
+    signal = np.array(
+        [0.0, 0.1, 0.3, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.4, 0.2, 0.0, 0.0]
+    )
     ecg_data = MagicMock()
     ecg_data.get_lead_signal.return_value = signal.copy()
     ecg_data.get_sampling_frequency.return_value = 500
@@ -982,7 +1269,19 @@ _FS = 7  # len == fs → duration factor == 1 for easy hand-checking
 
 def _ann(lead="I", onset=0, offset=None):
     offset = offset if offset is not None else len(_REF_SIGNAL)
-    return Annotations(pd.DataFrame([{"lead": lead, "onset": onset, "offset": offset, "p_wave_id": 1, "file_path": "rec1"}]))
+    return Annotations(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: lead,
+                    AnnotationSchema.ONSET: onset,
+                    AnnotationSchema.OFFSET: offset,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "rec1",
+                }
+            ]
+        )
+    )
 
 
 def _make_dual_mock(signal, morph_signal, lead="I", fs=_FS):
@@ -1086,13 +1385,28 @@ class TestPtfUnsupervisedFeatureCalculator:
         # Beat 1: signal[0:7]  → onset=0, offset=6  (6+1=7)
         # Beat 2: signal[7:14] → onset=7, offset=13 (13+1=14)
         signal = np.concatenate([_REF_SIGNAL, _REF_SIGNAL])
-        morph  = np.concatenate([_REF_SIGNAL, _REF_SIGNAL])
+        morph = np.concatenate([_REF_SIGNAL, _REF_SIGNAL])
         fc, ecg_data = _make_dual_mock(signal, morph, fs=_FS)
-        ann = Annotations(pd.DataFrame([
-            {"lead": "I", "onset": 0, "offset": 6,  "p_wave_id": 1, "file_path": "rec1"},
-            {"lead": "I", "onset": 7, "offset": 13, "p_wave_id": 2, "file_path": "rec1"},
-        ]))
+        ann = Annotations(
+            pd.DataFrame(
+                [
+                    {
+                        AnnotationSchema.LEAD: "I",
+                        AnnotationSchema.ONSET: 0,
+                        AnnotationSchema.OFFSET: 6,
+                        AnnotationSchema.P_WAVE_ID: 1,
+                        AnnotationSchema.FILE_PATH: "rec1",
+                    },
+                    {
+                        AnnotationSchema.LEAD: "I",
+                        AnnotationSchema.ONSET: 7,
+                        AnnotationSchema.OFFSET: 13,
+                        AnnotationSchema.P_WAVE_ID: 2,
+                        AnnotationSchema.FILE_PATH: "rec1",
+                    },
+                ]
+            )
+        )
         result = fc.ptf(ann, ecg_data)
         assert len(result) == 2
         np.testing.assert_allclose(result[0], result[1])
-

@@ -12,13 +12,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from atriakit import Pipeline, AnnotationsLoader
+from atriakit import AnnotationsLoader, Pipeline
 from atriakit.constants import VCG_FEATURE_COLUMNS
-from atriakit.datasets import simulate_12lead, generate, to_dicom, LEADS
+from atriakit.datasets import LEADS, generate, simulate_12lead, to_dicom
 from atriakit.feature_calculator import FeatureCalculators
 from atriakit.io import ECGLoader
+from atriakit.models.annotation_schema import AnnotationSchema
 from atriakit.models.ecg_data import ECGData
-
 
 # ---------------------------------------------------------------------------
 # Shared dataset (generated once per module, cleaned up in finally)
@@ -83,13 +83,23 @@ _LEADS_9 = ["I", "II", "V1", "V2", "V3", "V4", "V5", "V6", "V9"]
 _LEADS_9_REV = list(reversed(_LEADS_9))
 
 _ANN_ROWS = [
-    {"lead": "I",  "onset": 80,  "offset": 110, "p_wave_id": 1},
-    {"lead": "II", "onset": 82,  "offset": 112, "p_wave_id": 2},
+    {
+        AnnotationSchema.LEAD: "I",
+        AnnotationSchema.ONSET: 80,
+        AnnotationSchema.OFFSET: 110,
+        AnnotationSchema.P_WAVE_ID: 1,
+    },
+    {
+        AnnotationSchema.LEAD: "II",
+        AnnotationSchema.ONSET: 82,
+        AnnotationSchema.OFFSET: 112,
+        AnnotationSchema.P_WAVE_ID: 2,
+    },
 ]
 
 
 def _make_annotations(file_name: str) -> object:
-    rows = [{**row, "file_path": file_name} for row in _ANN_ROWS]
+    rows = [{**row, AnnotationSchema.FILE_PATH: file_name} for row in _ANN_ROWS]
     return AnnotationsLoader().from_dataframe(pd.DataFrame(rows))
 
 
@@ -97,6 +107,7 @@ def _make_annotations(file_name: str) -> object:
 def lead_order_dir(demo_dir):
     """Write two 9-lead DICOMs: standard and reversed channel order."""
     import numpy as np
+
     ecg_12 = simulate_12lead(heart_rate=60, seed=99)
     rng = np.random.default_rng(0)
 
@@ -105,13 +116,15 @@ def lead_order_dir(demo_dir):
 
     # Assemble 9-lead arrays in standard and reversed order
     kors_rows = np.array([LEADS.index(name) for name in _LEADS_9[:-1]])  # drop V9 index
-    ecg_9_std = np.vstack([ecg_12[kors_rows], v9])                       # (9, n_samples)
+    ecg_9_std = np.vstack([ecg_12[kors_rows], v9])  # (9, n_samples)
     ecg_9_rev = ecg_9_std[[_LEADS_9.index(name) for name in _LEADS_9_REV]]
 
     path_std = demo_dir / "LEADS9_STD.dcm"
     path_rev = demo_dir / "LEADS9_REV.dcm"
     to_dicom(ecg_9_std, patient_id="LEADS9_STD", leads=_LEADS_9).save_as(str(path_std))
-    to_dicom(ecg_9_rev, patient_id="LEADS9_REV", leads=_LEADS_9_REV).save_as(str(path_rev))
+    to_dicom(ecg_9_rev, patient_id="LEADS9_REV", leads=_LEADS_9_REV).save_as(
+        str(path_rev)
+    )
 
     return path_std, path_rev
 
@@ -157,6 +170,7 @@ def test_pipeline_features_invariant_to_lead_order(lead_order_dir, demo_dir):
 # compute_all with too few leads: VCG and axis skip gracefully with NaN columns
 # ---------------------------------------------------------------------------
 
+
 def test_compute_all_skips_vcg_and_axis_when_leads_missing():
     """compute_all returns NaN for VCG and axis columns when the required leads
     are absent, instead of crashing. All other features still compute normally."""
@@ -165,11 +179,23 @@ def test_compute_all_skips_vcg_and_axis_when_leads_missing():
     # Keep only II and aVR — no VCG leads (need I, V1–V6), no axis leads (need I, aVF).
     subset = ["II", "aVR"]
     ecg_2 = ecg_12[[LEADS.index(name) for name in subset], :]
-    ecg_data = ECGData(ecg=ecg_2, fs=500, lead_to_index={name: i for i, name in enumerate(subset)})
+    ecg_data = ECGData(
+        ecg=ecg_2, fs=500, lead_to_index={name: i for i, name in enumerate(subset)}
+    )
 
-    ann = AnnotationsLoader().from_dataframe(pd.DataFrame([
-        {"lead": "II", "onset": 80, "offset": 110, "p_wave_id": 1, "file_path": "f"},
-    ]))
+    ann = AnnotationsLoader().from_dataframe(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: "II",
+                    AnnotationSchema.ONSET: 80,
+                    AnnotationSchema.OFFSET: 110,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "f",
+                },
+            ]
+        )
+    )
 
     result = FeatureCalculators().compute_all(ann, ecg_data)
 

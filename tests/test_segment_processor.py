@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from atriakit.configs.segment_config import SegmentConfig
+from atriakit.models.annotation_schema import AnnotationSchema
 from atriakit.models.annotations import Annotations
 from atriakit.processing.segment_processor import SegmentProcessor
 
@@ -46,11 +47,11 @@ def test_compute_segment_metric_uses_nan_value_for_empty_selection():
     annotations = Annotations(
         pd.DataFrame(
             {
-                "lead": ["I", "I"],
-                "onset": [0, 0],
-                "offset": [3, 3],
-                "p_wave_id": [1, 2],
-                "file_path": ["rec1", "rec1"],
+                AnnotationSchema.LEAD: ["I", "I"],
+                AnnotationSchema.ONSET: [0, 0],
+                AnnotationSchema.OFFSET: [3, 3],
+                AnnotationSchema.P_WAVE_ID: [1, 2],
+                AnnotationSchema.FILE_PATH: ["rec1", "rec1"],
             }
         )
     )
@@ -79,11 +80,11 @@ def test_compute_segment_metric_happy_path_uses_default_signal_and_selector():
     annotations = Annotations(
         pd.DataFrame(
             {
-                "lead": ["I", "II"],
-                "onset": [0, 1],
-                "offset": [2, 3],
-                "p_wave_id": [1, 2],
-                "file_path": ["rec1", "rec1"],
+                AnnotationSchema.LEAD: ["I", "II"],
+                AnnotationSchema.ONSET: [0, 1],
+                AnnotationSchema.OFFSET: [2, 3],
+                AnnotationSchema.P_WAVE_ID: [1, 2],
+                AnnotationSchema.FILE_PATH: ["rec1", "rec1"],
             }
         )
     )
@@ -93,7 +94,9 @@ def test_compute_segment_metric_happy_path_uses_default_signal_and_selector():
     }
     ecg_data = MagicMock()
     ecg_data.get_sampling_frequency.return_value = 500
-    ecg_data.get_lead_signal.side_effect = lambda lead, **kwargs: lead_signals[lead].copy()
+    ecg_data.get_lead_signal.side_effect = lambda lead, **kwargs: lead_signals[
+        lead
+    ].copy()
 
     metric = processor.compute_segment_metric(
         annotations, ecg_data, metric_func=lambda segment, row: float(np.sum(segment))

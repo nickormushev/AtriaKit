@@ -5,8 +5,8 @@ import numpy as np
 import pydicom
 import pytest
 
-from atriakit.models.ecg_data import ECGData
 from atriakit.io import BaseLoader, DicomLoader, ECGLoader
+from atriakit.models.ecg_data import ECGData
 
 _STD_12 = {"I":0,"II":1,"III":2,"aVR":3,"aVL":4,"aVF":5,"V1":6,"V2":7,"V3":8,"V4":9,"V5":10,"V6":11}
 _STD_CHANNELS = [SimpleNamespace(ChannelLabel=name) for name in _STD_12]
@@ -34,6 +34,7 @@ def _make_fake_dicom(monkeypatch, waveform=None, ecg_signal=None):
 
 
 # ── DicomLoader ───────────────────────────────────────────────────────────────
+
 
 def test_dicom_loader_happy_path(monkeypatch):
     received_paths = []
@@ -91,6 +92,7 @@ def test_dicom_loader_missing_sampling_frequency_raises(monkeypatch):
 
 # ── ECGLoader ─────────────────────────────────────────────────────────────────
 
+
 def test_ecg_loader_dispatches_to_dicom(monkeypatch):
     _make_fake_dicom(monkeypatch)
     ecg_data = ECGLoader().load("recording.dcm")
@@ -114,6 +116,7 @@ def test_ecg_loader_register_custom_loader():
 
     assert isinstance(ecg_data, ECGData)
     assert ecg_data.sampling_frequency == 250
+
 
 def test_base_loader_protocol():
     class MyLoader:
