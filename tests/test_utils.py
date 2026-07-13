@@ -1,69 +1,8 @@
 import numpy as np
-import pytest
 import pandas as pd
-from atriakit.utils import match_lead_annotations, convert_ecg_segment_to_vcg
+import pytest
 
-
-
-# --- Fixtures for sample lead annotations ---
-@pytest.fixture
-def lead_1_df():
-    return pd.DataFrame({
-        "offset": [1, 2, 3],
-        "onset": [10, 30, 50],
-        "p_wave_id": [1, 2, 3]
-    })
-
-@pytest.fixture
-def lead_2_df():
-    return pd.DataFrame({
-        "offset": [10, 20, 30],
-        "onset": [12, 32, 60],
-        "p_wave_id": [101, 102, 103]
-    })
-
-# --- Test normal pairing ---
-def test_match_lead_annotations_basic(lead_1_df, lead_2_df):
-    paired = match_lead_annotations(lead_1_df, lead_2_df, max_len=5)
-    
-    # Only first two should pair: diff = 2, 2, 10 → last exceeds max_len
-    assert len(paired) == 2
-    # Check the paired onsets
-    paired_onsets = [(p[0]['onset'], p[1]['onset']) for p in paired]
-    assert paired_onsets == [(10, 12), (30, 32)]
-
-# --- Test no matches ---
-def test_match_lead_annotations_no_matches(lead_1_df):
-    lead_2 = pd.DataFrame({
-        "offset": [10, 20],
-        "onset": [100, 200],
-        "p_wave_id": [101, 102]
-    })
-    paired = match_lead_annotations(lead_1_df, lead_2, max_len=5)
-    assert len(paired) == 0
-
-# --- Test unequal lengths ---
-def test_match_lead_annotations_unequal_lengths(lead_1_df):
-    lead_2 = pd.DataFrame({
-        "offset": [10, 20],
-        "onset": [12, 32],
-        "p_wave_id": [101, 102]
-    })
-    paired = match_lead_annotations(lead_1_df, lead_2, max_len=5)
-    assert len(paired) == 2
-    paired_onsets = [(p[0]['onset'], p[1]['onset']) for p in paired]
-    assert paired_onsets == [(10, 12), (30, 32)]
-
-# --- Test empty inputs ---
-def test_match_lead_annotations_empty():
-    paired = match_lead_annotations(pd.DataFrame(columns=["offset","onset"]), 
-                                    pd.DataFrame(columns=["offset","onset"]))
-    assert len(paired) == 0
-
-    paired = match_lead_annotations(pd.DataFrame(columns=["offset","onset"]),
-                                    pd.DataFrame({"offset":[1], "onset":[10]}))
-    assert len(paired) == 0
-
+from atriakit.utils import convert_ecg_segment_to_vcg
 
 # ---------------------------------------------------------------------------
 # convert_ecg_segment_to_vcg

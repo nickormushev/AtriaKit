@@ -126,6 +126,10 @@ class SignalPreprocessor:
 
         Returns:
             Preprocessed signal array with the same shape as ``ecg``.
+
+        Raises:
+            ValueError: If configured for zscore normalization without fitted
+                ``mean``/``std``, or if ``normalization_type`` is unsupported.
         """
         processed = ecg
         if self.config.notch_freq is not None:

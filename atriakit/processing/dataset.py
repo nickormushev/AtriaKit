@@ -48,6 +48,11 @@ class ECGDataset:
             Tuple of ``(mean, std)`` arrays of shape ``(n_leads,)``, where
             ``n_leads`` is inferred from the first file loaded.
 
+        Raises:
+            ValueError: If an annotation's window is invalid (end index not
+                after start index), or if no samples were accumulated for at
+                least one lead.
+
         Note:
             All recordings must have the same number of leads in the same order.
             Mixed-lead datasets (e.g. combining 8-lead and 12-lead files) are
@@ -132,6 +137,9 @@ class ECGDataset:
         Returns:
             Tuple of ``(mean, std)`` arrays of shape ``(n_leads,)``, where
             ``n_leads`` is inferred from the first file loaded.
+
+        Raises:
+            ValueError: If no samples were accumulated for at least one lead.
 
         Note:
             All recordings must have the same number of leads in the same order.

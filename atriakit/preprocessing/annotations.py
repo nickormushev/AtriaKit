@@ -6,29 +6,6 @@ import pandas as pd
 from atriakit.annotations import Annotations
 from atriakit.models.annotations import AnnotationSchema
 
-FEATURE_COLUMNS_TO_DROP = [
-    "vcg_eigenvalues_1",
-    "vcg_eigenvalues_2",
-    "vcg_eigenvalues_3",
-    "vcg_roundness",
-    "vcg_flatness",
-    "vcg_area",
-    "vcg_axis_elevation",
-    "vcg_axis_azimuth",
-    "vcg_sum_fragment_count",
-    "vcg_sum_fragment_width",
-    "vcg_sum_fragment_height",
-    "vcg_x_fragment_count",
-    "vcg_x_fragment_width",
-    "vcg_x_fragment_height",
-    "vcg_y_fragment_count",
-    "vcg_y_fragment_width",
-    "vcg_y_fragment_height",
-    "vcg_z_fragment_count",
-    "vcg_z_fragment_width",
-    "vcg_z_fragment_height",
-]
-
 _DEDUP_COLUMNS = [
     AnnotationSchema.PATIENT_ID,
     AnnotationSchema.FILE_PATH,
@@ -64,17 +41,10 @@ def prepare_annotations(df: pd.DataFrame) -> pd.DataFrame:
         prepared = prepared.drop_duplicates(duplicate_subset)
 
     if AnnotationSchema.IGNORE in prepared.columns:
-        prepared = prepared[~prepared[AnnotationSchema.IGNORE]].drop(columns=[AnnotationSchema.IGNORE])
+        prepared = prepared[~prepared[AnnotationSchema.IGNORE]].drop(
+            columns=[AnnotationSchema.IGNORE]
+        )
     return prepared
-
-
-# TODO: Remove on final release
-def drop_feature_columns(group: pd.DataFrame) -> pd.DataFrame:
-    return group.drop(
-        columns=[
-            column for column in FEATURE_COLUMNS_TO_DROP if column in group.columns
-        ]
-    )
 
 
 def group_p_waves(
@@ -114,5 +84,3 @@ def group_p_waves(
             p_wave_id += 1
 
     return grouped
-
-

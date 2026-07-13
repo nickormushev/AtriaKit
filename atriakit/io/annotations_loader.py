@@ -145,6 +145,11 @@ class AnnotationsLoader:
         If *path* is a directory, all files with registered extensions are loaded
         and concatenated. Normalizes file paths, drops duplicates and ignored rows,
         then applies multilead onset/offset enrichment.
+
+        Raises:
+            ValueError: If *path* is a directory with no files matching a
+                registered extension, or if no loader is registered for a
+                matched file's extension.
         """
         path = Path(path)
         if path.is_dir():

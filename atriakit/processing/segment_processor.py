@@ -48,7 +48,23 @@ class SegmentProcessor:
         fs: int,
         row,
     ) -> np.ndarray:
-        """Slice, baseline-correct, and select the annotated sub-segment of ``signal``."""
+        """Slice, baseline-correct, and select the annotated sub-segment of ``signal``.
+
+        Args:
+            signal: Source signal, shape ``(n_samples,)`` or ``(n_leads, n_samples)``.
+            segment_selector: Callable(segment, row) -> sub-segment to apply after
+                baseline correction.
+            fs: Sampling frequency in Hz.
+            row: Annotation row with ``onset``/``offset`` (and ``lead``, ``p_wave_id``
+                used for error messages).
+
+        Returns:
+            The selected, baseline-corrected sub-segment.
+
+        Raises:
+            ValueError: If the annotation's onset/offset bounds are invalid for
+                ``signal``.
+        """
         onset, offset = self._compute_onset_offset(row, signal, fs)
 
         segment = signal[:, onset:offset] if signal.ndim == 2 else signal[onset:offset]
@@ -75,8 +91,12 @@ class SegmentProcessor:
             metric_func: Callable(segment, row) -> scalar applied to each segment.
             get_signal: Optional callable(row) -> signal array; defaults to the
                 raw lead signal from ``ecg_data``.
-            segment_selector: Optional callable(segment, row) -> sub-segment; defaults to the full segment.
+            segment_selector: Optional callable(segment, row) -> sub-segment;
+                defaults to the full segment.
             nan_value: Value to use when a segment cannot be extracted.
+
+        Returns:
+            List of per-annotation metric values, in annotation order.
         """
         if annotations.empty:
             return np.array([])

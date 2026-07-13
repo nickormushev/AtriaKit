@@ -11,11 +11,15 @@ def apply_baseline_correction(segment: np.ndarray, update_type: str) -> np.ndarr
     Args:
         segment: 1-D or 2-D ``(channels, samples)`` signal segment.
         update_type: ``"linear"`` removes a linear trend; ``"onset"`` subtracts
-            the first sample of each channel; any other value returns the
-            segment unchanged.
+            the first sample of each channel; ``"none"`` returns the segment
+            unchanged.
 
     Returns:
         Baseline-corrected segment (same shape as input).
+
+    Raises:
+        ValueError: If ``update_type`` is not one of ``"linear"``, ``"onset"``,
+            or ``"none"``.
     """
     if update_type == "linear":
         if segment.ndim > 1:
@@ -141,35 +145,6 @@ def _compute_spline_smoothing_value(
     return float(smoothing_factor) * anchor_y.size * variance
 
 
-def match_lead_annotations(lead_1_anns, lead_2_anns, max_len=100):
-    """Pair annotations from two leads by closest onset, discarding pairs more than ``max_len`` samples apart."""
-    paired_anns = []
-
-    i, j = 0, 0
-
-    while i < len(lead_1_anns) and j < len(lead_2_anns):
-        l1_onset = lead_1_anns.iloc[i].onset
-        l2_onset = lead_2_anns.iloc[j].onset
-
-        diff = l2_onset - l1_onset
-
-        if abs(diff) <= max_len:
-            paired_anns.append((lead_1_anns.iloc[i], lead_2_anns.iloc[j]))
-            i += 1
-            j += 1
-
-        elif diff < -max_len:
-            # lead_2 onset is way before lead_1 onset then move j forward
-            j += 1
-
-        elif diff > max_len:
-            # lead_2 onset is way after lead_1 onset
-            # since lists are sorted, further lead_2 will only be later so we stop searching for this lead_1
-            i += 1
-
-    return paired_anns
-
-
 def normalize(arr, mean=None, std=None):
     """Normalize array using precomputed mean and std per lead."""
     if mean is None or std is None:
@@ -177,36 +152,6 @@ def normalize(arr, mean=None, std=None):
 
     norm = (arr - mean[:, None]) / (std[:, None] + 1e-8)
     return norm
-
-# TODO: I think I need to remove this or some other methods in this file only used by the paper methods
-def separate_annotations_by_time(annotations, fs):
-    """If file has both before and after annotations, group the ones close together and split them into before and after annotations."""
-    grouped = []
-    current_group = []
-    threshold = 60  # 1 minute
-    sample_threshold = fs * threshold
-    annotations = annotations[annotations[AnnotationSchema.ONSET] != -1]
-
-    sorted_annotations = annotations.sort_values(by=AnnotationSchema.ONSET)
-
-    previous_onset = None
-    for _, row in sorted_annotations.iterrows():
-        if previous_onset is None or row.onset - previous_onset <= sample_threshold:
-            current_group.append(row.name)
-        else:
-            grouped.append(current_group)
-            current_group = [row.name]
-        previous_onset = row.onset
-
-    if current_group:
-        grouped.append(current_group)
-
-    if len(grouped) != 2:
-        raise ValueError(
-            f"Expected exactly two groups of annotations, got {len(grouped)} groups."
-        )
-
-    return grouped[0], grouped[1]
 
 
 def convert_ecg_segment_to_vcg(
@@ -225,7 +170,6 @@ def convert_ecg_segment_to_vcg(
         ]
     )
 
-    # ecg_xyz = np.einsum('ke, eL -> kL', kors_matrix, ecg_8)
     ecg_xyz = kors_matrix @ ecg_8  # (3, n_timesteps)
 
     return ecg_xyz

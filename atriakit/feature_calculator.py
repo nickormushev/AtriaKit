@@ -628,10 +628,13 @@ class FeatureCalculators:
         (median position), then RR intervals are converted to bpm.
 
         Args:
+            annotations: P-wave annotations used to locate beats.
+            ecg_data: ECG signal source.
             leads: Leads used for R-peak detection (default: ["II", "V5", "V6"]).
 
         Returns:
-            Median heart rate in bpm, or -1 if fewer than two beats are available.
+            Median heart rate in bpm, -1 if fewer than two beats are available,
+            or an empty array if ``annotations`` is empty.
         """
         if annotations.empty:
             return np.array([])
@@ -838,6 +841,10 @@ class FeatureCalculators:
 
         Returns:
             Noise estimate per lead, in the same order as the leads in annotations.
+
+        Raises:
+            ValueError: If a VCG lead is present in ``annotations`` but
+                ``lead_signal`` is not provided.
         """
         if annotations.empty:
             return []
@@ -864,6 +871,9 @@ class FeatureCalculators:
         leads_in_annotations = list(
             pd.unique(annotations_with_p_wave_max[AnnotationSchema.LEAD])
         )
+        if "VCG" in leads_in_annotations and lead_signal is None:
+            raise ValueError("Lead_signal must be provided for VCG leads.")
+
         if lead_signal is not None and leads_in_annotations == ["VCG"]:
             leads = ["VCG"]
         else:
@@ -871,9 +881,6 @@ class FeatureCalculators:
 
         for lead in leads:
             lead_annotations = annotations_with_p_wave_max.filter_by_lead(lead)
-
-            if lead == "VCG" and lead_signal is None:
-                raise ValueError("Lead_signal must be provided for VCG leads.")
 
             if lead != "VCG":
                 lead_signal = self._get_signal_for_lead(ecg_data, lead)
@@ -917,24 +924,6 @@ class FeatureCalculators:
             get_signal=lambda row: self._get_vcg_signal(row, ecg_data),
             nan_value=(np.nan, np.nan),
         )
-
-    # TODO: Do not commit
-    # def vcg_axis_expanded(
-    #    self, annotations: Annotations, ecg_data: ECGData
-    # ) -> tuple[list[float], list[float]]:
-    #    """Like vcg_axis() but returns (elevations, azimuths) aligned to every row
-    #    in annotations, broadcasting each P-wave's value across all its leads."""
-    #    vcg_ann = annotations.vcg_annotations()
-    #    vals = self.vcg_axis(annotations, ecg_data)
-    #    elev_map = {
-    #        pid: v[0] for pid, v in zip(vcg_ann[AnnotationSchema.P_WAVE_ID], vals)
-    #    }
-    #    azim_map = {
-    #        pid: v[1] for pid, v in zip(vcg_ann[AnnotationSchema.P_WAVE_ID], vals)
-    #    }
-    #    elevations = annotations[AnnotationSchema.P_WAVE_ID].map(elev_map).tolist()
-    #    azimuths = annotations[AnnotationSchema.P_WAVE_ID].map(azim_map).tolist()
-    #    return elevations, azimuths
 
     def vcg_eigenfeatures(
         self, annotations: Annotations, ecg_data: ECGData, return_eigenvectors=False
@@ -1222,16 +1211,6 @@ class FeatureCalculators:
                 n_bins=shannon_entropy_n_bins,
                 bin_range=shannon_entropy_bin_range,
             ),
-            # "shannon_entropy_morph_coarse": self.get_shannon_entropy(
-            #    annotations,
-            #    ecg_data,
-            #    n_bins=10,
-            # ),
-            # "shannon_entropy_morph_fine": self.get_shannon_entropy(
-            #    annotations,
-            #    ecg_data,
-            #    n_bins=shannon_entropy_n_bins // 2,
-            # ),
             "sample_entropy": self.get_sample_entropy(
                 annotations,
                 ecg_data,
@@ -1464,103 +1443,3 @@ class FeatureCalculators:
         features_df[vcg_cols] = merged[vcg_cols].values
 
         return features_df
-
-    # TODO: Remove before release or validate
-    def save_p_wave_plots(
-        self,
-        annotations: Annotations,
-        ecg_data: ECGData,
-        output_dir: str,
-        patient_id: str = "",
-        ann_type: str = "",
-    ) -> None:
-        """Save mean ± std P-wave plots (after baseline correction) as PNG files.
-
-        One PNG per call, named {patient_id}_{ann_type}.png.
-        Useful for verifying baseline correction visually.
-        """
-        import os
-
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-
-        if not patient_id and AnnotationSchema.PATIENT_ID in annotations.columns:
-            patient_id = str(annotations[AnnotationSchema.PATIENT_ID].iloc[0])
-        if not ann_type and AnnotationSchema.TYPE in annotations.columns:
-            ann_type = str(annotations[AnnotationSchema.TYPE].iloc[0])
-
-        fs = ecg_data.get_sampling_frequency()
-
-        pairs = self._compute_segment_metric(
-            annotations,
-            ecg_data,
-            lambda seg, row: (row.lead, seg.copy()),
-            nan_value=("", np.array([])),
-        )
-
-        segments_by_lead: dict[str, list[np.ndarray]] = {}
-        for lead, seg in pairs:
-            if lead and len(seg) > 0:
-                segments_by_lead.setdefault(lead, []).append(seg)
-
-        if not segments_by_lead:
-            return
-
-        LEAD_ORDER = [
-            "I",
-            "II",
-            "III",
-            "aVR",
-            "aVL",
-            "aVF",
-            "V1",
-            "V2",
-            "V3",
-            "V4",
-            "V5",
-            "V6",
-        ]
-        leads = [lead for lead in LEAD_ORDER if lead in segments_by_lead] + [
-            lead for lead in segments_by_lead if lead not in LEAD_ORDER
-        ]
-
-        ncols = 4
-        nrows = int(np.ceil(len(leads) / ncols))
-        fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 3.5, nrows * 3.0))
-        axes = np.array(axes).flatten()
-
-        for i, lead in enumerate(leads):
-            ax = axes[i]
-            segs = segments_by_lead[lead]
-            max_len = max(len(s) for s in segs)
-
-            mat = np.full((len(segs), max_len), np.nan)
-            for j, s in enumerate(segs):
-                mat[j, : len(s)] = s
-
-            mean = np.nanmean(mat, axis=0)
-            std = np.nanstd(mat, axis=0)
-            x_ms = np.arange(max_len) * 1000.0 / fs
-
-            ax.plot(x_ms, mean, color="steelblue", lw=1.5)
-            ax.fill_between(x_ms, mean - std, mean + std, color="steelblue", alpha=0.25)
-            ax.axhline(0, color="black", lw=0.5, linestyle="--")
-            ax.set_title(f"{lead}  (n={len(segs)})")
-            ax.set_xlabel("ms")
-            ax.set_ylabel("amplitude")
-            ax.grid(True, linestyle=":", linewidth=0.5, alpha=0.7)
-
-        for j in range(len(leads), len(axes)):
-            axes[j].set_visible(False)
-
-        label = f"{patient_id}_{ann_type}".strip("_")
-        fig.suptitle(f"P-waves after baseline correction — {label}", fontsize=11)
-        plt.tight_layout(rect=[0, 0, 1, 0.95])
-
-        os.makedirs(output_dir, exist_ok=True)
-        fig.savefig(
-            os.path.join(output_dir, f"{label}.png"), dpi=100, bbox_inches="tight"
-        )
-        plt.close(fig)

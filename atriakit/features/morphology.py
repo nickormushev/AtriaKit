@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def calculate_inflexion(ecg_derivative, row_onset, phase_type):
     """Return the inflexion point index for a biphasic P-wave.
 
@@ -28,12 +29,13 @@ def calculate_inflexion(ecg_derivative, row_onset, phase_type):
     if phase_type == "Biphasic Positive-Negative":
         selected_idx = zero_crossings[np.argmin(ecg_derivative[zero_crossings])]
         return selected_idx + row_onset + 1
-    
+
     if phase_type == "Biphasic Negative-Positive":
         selected_idx = zero_crossings[np.argmax(ecg_derivative[zero_crossings])]
         return selected_idx + row_onset + 1
 
     return -1
+
 
 def validate_group(count, duration_threshold, segment, start, voltage_threshold):
     """Return ``True`` if a sign group meets the duration and amplitude thresholds."""
@@ -43,6 +45,7 @@ def validate_group(count, duration_threshold, segment, start, voltage_threshold)
         count >= duration_threshold * len(segment)
         and abs(ptp_amplitude) >= voltage_threshold
     )
+
 
 def extract_sign_groups(signs, duration_threshold, segment, voltage_threshold=0):
     """Extract validated sign groups from the derivative sign array.
@@ -67,7 +70,6 @@ def extract_sign_groups(signs, duration_threshold, segment, voltage_threshold=0)
     groups = []
     count = 1
     if len(signs) == 0:
-        print("No signs to process")
         return groups
     last_sign = signs[0]
     start = 0

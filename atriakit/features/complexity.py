@@ -43,41 +43,9 @@ def extrema_counter(
         # Left neighbor: previous extremum, or segment start for first
         left = segment[extrema[idx - 1]] if idx > 0 else segment[0]
         # Right neighbor: next extremum, or segment end for last
-        right = (
-            segment[extrema[idx + 1]] if idx < len(extrema) - 1 else segment[-1]
-        )
+        right = segment[extrema[idx + 1]] if idx < len(extrema) - 1 else segment[-1]
 
         if abs(curr - left) >= threshold and abs(curr - right) >= threshold:
             valid_extrema_count += 1
 
     return valid_extrema_count
-
-
-#def extrema_positions(
-#    segment,
-#    lead,
-#    max_abs_amplitude_per_lead,
-#    threshold_multiplier: float = 0.1,
-#) -> np.ndarray:
-#    """Same logic as extrema_counter but returns the sample indices of valid extrema."""
-#    if len(segment) < 3:
-#        return np.array([], dtype=int)
-#
-#    dt = np.diff(segment)
-#    extrema = np.where(np.diff(np.sign(dt)) != 0)[0] + 1
-#
-#    if len(extrema) == 0:
-#        return np.array([], dtype=int)
-#
-#    threshold = threshold_multiplier * max_abs_amplitude_per_lead[lead]
-#    valid = []
-#
-#    for idx, curr_idx in enumerate(extrema):
-#        curr = segment[curr_idx]
-#        left = segment[extrema[idx - 1]] if idx > 0 else segment[0]
-#        right = segment[extrema[idx + 1]] if idx < len(extrema) - 1 else segment[-1]
-#        if abs(curr - left) >= threshold and abs(curr - right) >= threshold:
-#            valid.append(curr_idx)
-#
-#    return np.array(valid, dtype=int)
-#

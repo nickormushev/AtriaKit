@@ -290,6 +290,11 @@ class Pipeline:
 
         Returns:
             Tuple of ``(pipeline, annotations)``.
+
+        Raises:
+            ValueError: If the YAML is malformed, contains unknown config
+                keys, is missing ``ecg_base_path``, or does not specify
+                exactly one of ``annotations_dir``/``annotations_csv``.
         """
         pipeline_kwargs, annotations, _ = cls._pipeline_kwargs_from_yaml(config_path)
         return cls(**pipeline_kwargs), annotations
@@ -312,6 +317,11 @@ class Pipeline:
 
         Returns:
             Annotations with feature columns added.
+
+        Raises:
+            ValueError: If the YAML is malformed, contains unknown config
+                keys, is missing ``ecg_base_path``, or does not specify
+                exactly one of ``annotations_dir``/``annotations_csv``.
         """
         pipeline_kwargs, annotations, run_kwargs = cls._pipeline_kwargs_from_yaml(config_path)
         pipeline = cls(**pipeline_kwargs)
