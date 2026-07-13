@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from atriakit.paper.annotation_processor import AnnotationProcessor  # <-- adjust import
 from atriakit.preprocessing.annotations import prepare_annotations
-from atriakit.models.annotations import AnnotationSchema
+from atriakit.models.annotation_schema import AnnotationSchema
 
 
 def test_prepare_annotations_deduplicates_after_path_normalization():

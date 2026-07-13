@@ -1,7 +1,7 @@
-from atriakit.annotations import Annotations
+from atriakit.models.annotations import Annotations
 from atriakit.configs.annotations_loader_config import AnnotationsLoaderConfig
 from atriakit.io import AnnotationsLoader
-from atriakit.models.annotations import AnnotationSchema
+from atriakit.models.annotation_schema import AnnotationSchema
 import pandas as pd
 import pytest
 

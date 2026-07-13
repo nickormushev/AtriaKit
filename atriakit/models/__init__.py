@@ -1,3 +1,3 @@
-from atriakit.models.annotations import AnnotationRow
+from atriakit.models.annotation_row import AnnotationRow
 
 __all__ = ["AnnotationRow"]

@@ -5,9 +5,9 @@ from typing import Protocol, runtime_checkable
 
 import pandas as pd
 
-from atriakit.annotations import Annotations
 from atriakit.configs.annotations_loader_config import AnnotationsLoaderConfig
-from atriakit.models.annotations import AnnotationSchema
+from atriakit.models.annotation_schema import AnnotationSchema
+from atriakit.models.annotations import Annotations
 from atriakit.preprocessing.annotations import prepare_annotations
 
 

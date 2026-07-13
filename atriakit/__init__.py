@@ -27,8 +27,8 @@ __all__ = [
 
 _PUBLIC_IMPORTS = {
     "create_demo_data": ("atriakit.datasets", "generate"),
-    "AnnotationRow": ("atriakit.models.annotations", "AnnotationRow"),
-    "Annotations": ("atriakit.annotations", "Annotations"),
+    "AnnotationRow": ("atriakit.models.annotation_row", "AnnotationRow"),
+    "Annotations": ("atriakit.models.annotations", "Annotations"),
     "AnnotationsLoaderConfig": ("atriakit.configs.annotations_loader_config", "AnnotationsLoaderConfig"),
     "AnnotationsLoader": ("atriakit.io", "AnnotationsLoader"),
     "BaseLoader": ("atriakit.io", "BaseLoader"),

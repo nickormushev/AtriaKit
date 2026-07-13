@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from atriakit.annotations import Annotations
+from atriakit.models.annotations import Annotations
 from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
 from atriakit.io import AnnotationsLoader
 from atriakit.preprocessing.signals import SignalPreprocessor

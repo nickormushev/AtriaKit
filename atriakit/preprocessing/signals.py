@@ -5,9 +5,9 @@ from dataclasses import replace
 import numpy as np
 from scipy.signal import butter, filtfilt, iirnotch
 
-from atriakit.annotations import Annotations
+from atriakit.models.annotations import Annotations
 from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
-from atriakit.models.annotations import AnnotationSchema
+from atriakit.models.annotation_schema import AnnotationSchema
 from atriakit.utils import build_p_onset_spline_baseline, normalize
 
 

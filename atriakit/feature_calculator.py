@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 import atriakit.features.amplitude as amplitude_features
-from atriakit.annotations import Annotations
+from atriakit.models.annotations import Annotations
 from atriakit.configs.feature_calculator_config import FeatureCalculatorConfig
 from atriakit.configs.signal_preprocessor_config import (
     default_morphology_preprocessor_config,
@@ -31,7 +31,7 @@ from atriakit.features.vcg import (
     vcg_axis_angles,
     vcg_eigenfeatures_calculator,
 )
-from atriakit.models.annotations import AnnotationSchema
+from atriakit.models.annotation_schema import AnnotationSchema
 from atriakit.models.ecg_data import ECGData
 from atriakit.preprocessing.signals import SignalPreprocessor
 from atriakit.processing.segment_processor import SegmentProcessor

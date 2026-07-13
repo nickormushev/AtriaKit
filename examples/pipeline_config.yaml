@@ -1,5 +1,5 @@
 ecg_base_path: ./data
-annotations_dir: ./data  <- dir used if both csv and dir are specified
+annotations_dir: ./data  # dir used if both csv and dir are specified
 #annotations_csv: ./data/annotations.csv
 
 debug: false

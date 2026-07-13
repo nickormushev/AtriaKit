@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-from atriakit.annotations import Annotations
+from atriakit.models.annotations import Annotations
 from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
 from atriakit.models.ecg_data import ECGData
 from atriakit.preprocessing.signals import SignalPreprocessor

@@ -19,14 +19,14 @@ from atriakit.configs.signal_preprocessor_config import (
     default_morphology_preprocessor_config,
     default_signal_preprocessor_config,
 )
-from atriakit.annotations import Annotations
+from atriakit.models.annotations import Annotations
 from atriakit.models.ecg_data import ECGData
 from atriakit.io import AnnotationsLoader, ECGLoader
 from atriakit.preprocessing import group_p_waves
 from atriakit.preprocessing.signals import SignalPreprocessor
 from atriakit.processing.dataset import ECGDataset
 from atriakit.feature_calculator import FeatureCalculators
-from atriakit.models.annotations import AnnotationSchema
+from atriakit.models.annotation_schema import AnnotationSchema
 
 LOGGER = logging.getLogger(__name__)
 

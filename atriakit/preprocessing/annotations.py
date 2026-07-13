@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from atriakit.annotations import Annotations
-from atriakit.models.annotations import AnnotationSchema
+from atriakit.models.annotations import Annotations
+from atriakit.models.annotation_schema import AnnotationSchema
 
 _DEDUP_COLUMNS = [
     AnnotationSchema.PATIENT_ID,

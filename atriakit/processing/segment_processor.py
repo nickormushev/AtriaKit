@@ -2,7 +2,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from atriakit.annotations import Annotations
+from atriakit.models.annotations import Annotations
 from atriakit.configs.segment_config import SegmentConfig
 from atriakit.models.ecg_data import ECGData
 from atriakit.utils import apply_baseline_correction

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from atriakit.annotations import Annotations
+from atriakit.models.annotations import Annotations
 from atriakit.configs.signal_preprocessor_config import default_signal_preprocessor_config
 from atriakit.io import AnnotationsLoader
 from atriakit.processing.dataset import ECGDataset

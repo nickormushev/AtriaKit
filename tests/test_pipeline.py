@@ -6,10 +6,10 @@ import pandas as pd
 import pytest
 
 from atriakit import Pipeline, PipelineConfig
-from atriakit.annotations import Annotations
+from atriakit.models.annotations import Annotations
 from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
 from atriakit.feature_calculator import FeatureCalculators
-from atriakit.models.annotations import AnnotationSchema
+from atriakit.models.annotation_schema import AnnotationSchema
 from atriakit.models.ecg_data import ECGData
 from atriakit.io import AnnotationsLoader, BaseLoader
 

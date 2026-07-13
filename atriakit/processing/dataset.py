@@ -2,9 +2,9 @@ import logging
 
 import numpy as np
 
-from atriakit.annotations import Annotations
+from atriakit.models.annotations import Annotations
 from atriakit.io import ECGLoader
-from atriakit.models.annotations import AnnotationSchema
+from atriakit.models.annotation_schema import AnnotationSchema
 from atriakit.preprocessing.signals import SignalPreprocessor
 
 LOGGER = logging.getLogger(__name__)
