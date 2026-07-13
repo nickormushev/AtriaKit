@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atriakit"
+version = "0.1.0"
+description = "ECG feature extraction library"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Nikolay Kormushev", email = "nkormushev@ethz.ch" },
+]
+keywords = ["ecg", "electrocardiogram", "signal-processing", "feature-extraction"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+    "numba>=0.57",
+    "numpy>=1.24",
+    "nolds>=0.5",
+    "pandas>=2.0",
+    "pydantic>=2.0",
+    "PyYAML>=6.0",
+    "pydicom>=2.4",
+    "scipy>=1.10",
+    "tqdm>=4.65",
+]
+
+[project.optional-dependencies]
+dev = [
+    "neurokit2>=0.2.7",
+    "pytest>=7.4",
+]
+
+[project.urls]
+Homepage = "https://gitlab.inf.ethz.ch/nkormushev/feature-library"
+Repository = "https://gitlab.inf.ethz.ch/nkormushev/feature-library"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["atriakit", "atriakit.*"]
+exclude = ["atriakit.paper*"]
+
+[tool.coverage.report]
+omit = ["atriakit/paper/*"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["D"]
+ignore = [
+    "D100",  # missing docstring in public module (file-level)
+    "D104",  # missing docstring in public package (__init__.py)
+    "D105",  # missing docstring in magic method
+    "D107",  # missing docstring in __init__
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
