@@ -3,9 +3,8 @@
 import logging
 from pathlib import Path
 
-from ecg_annotator.loaders import dcm_loader, mat_loader
+from ecg_annotator.loaders import dcm_loader
 from ecg_annotator.loaders.dcm_loader import dcm_sort_key, load_dcm_ecg
-from ecg_annotator.loaders.mat_loader import mat_sort_key, load_mat_ecg
 from ecg_annotator.models.recording import ECGRecording
 
 log = logging.getLogger(__name__)
@@ -14,7 +13,6 @@ log = logging.getLogger(__name__)
 # Each loader module owns its sort key logic so DataLoader stays format-agnostic.
 _SORT_KEYS: dict[str, object] = {
     **{ext: dcm_sort_key for ext in dcm_loader.SUPPORTED_EXTENSIONS},
-    **{ext: mat_sort_key for ext in mat_loader.SUPPORTED_EXTENSIONS},
 }
 
 
@@ -62,6 +60,4 @@ class DataLoader:
         # Access load functions by name so patching in tests works correctly.
         if ext in dcm_loader.SUPPORTED_EXTENSIONS:
             return load_dcm_ecg(path)
-        if ext in mat_loader.SUPPORTED_EXTENSIONS:
-            return load_mat_ecg(path)
         return None

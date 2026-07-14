@@ -43,6 +43,19 @@ def load_dcm_ecg(path: str) -> ECGRecording | None:
 
         if signals is None:
             raise ValueError("No ECG waveform found")
+        if len(lead_names) < signals.shape[0]:
+            # HOTFIX: a short ChannelDefinitionSequence left lead_names shorter than
+            # ecg_mV's channel count, which let annotator.py's click handler index past
+            # the per-lead ignore-checkbox list (IndexError on click). Pad instead of
+            # rejecting the file so loading still succeeds.
+            log.warning(
+                "%s: ECG waveform has %d channel(s) but ChannelDefinitionSequence "
+                "only lists %d lead name(s); padding with placeholder names",
+                path, signals.shape[0], len(lead_names),
+            )
+            lead_names += [
+                f"Lead {i}" for i in range(len(lead_names), signals.shape[0])
+            ]
 
         pfa_signals = None
         pfa_lead_names = []

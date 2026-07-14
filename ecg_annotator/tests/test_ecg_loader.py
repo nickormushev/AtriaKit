@@ -78,6 +78,24 @@ def test_pfa_separated_and_sorted():
     assert list(result.lead_names) == [f"L{i}" for i in range(12)]
 
 
+def test_pads_lead_names_when_channel_definitions_are_short():
+    """A DICOM whose ChannelDefinitionSequence lists fewer names than actual
+    waveform channels should still load, with placeholder names padded on —
+    not fail, and not leave lead_names shorter than ecg_mV's channel count."""
+    ecg = np.ones((12, 100))
+    with patch(
+        "ecg_annotator.loaders.dcm_loader.pydicom.dcmread",
+        side_effect=_mock_dcmread(ecg, [f"L{i}" for i in range(10)]),
+    ):
+        result = load_dcm_ecg("mock.dcm")
+
+    assert result is not None
+    assert result.ecg_mV.shape == (12, 100)
+    assert len(result.lead_names) == 12
+    assert list(result.lead_names[:10]) == [f"L{i}" for i in range(10)]
+    assert list(result.lead_names[10:]) == ["Lead 10", "Lead 11"]
+
+
 def test_corrupted_file_returns_none(tmp_path):
     bad = tmp_path / "bad.dcm"
     bad.write_text("not a dicom")

@@ -2,7 +2,6 @@
 
 import numpy as np
 import pydicom
-import matio
 from pathlib import Path
 from unittest.mock import patch
 from pydicom.dataset import Dataset, FileDataset
@@ -66,19 +65,6 @@ def _write_dicom_without_required_tags(path: Path):
     pydicom.dcmwrite(str(path), ds)
 
 
-def _write_mat(path: Path, patient_id: str = "P001", start: str = "2021-04-08T10:00:00") -> Path:
-    """Write a minimal valid MAT file with the required rec struct."""
-    rec = {
-        "patient": {"id": patient_id},
-        "start": np.datetime64(start, "ms"),
-        "ecg_mV": np.zeros((100, 8)),
-        "fs_Hz": 500.0,
-        "lead_names": np.array(["I", "II", "V1", "V2", "V3", "V4", "V5", "V6"]),
-    }
-    matio.save_to_mat(str(path), {"rec": rec})
-    return path
-
-
 # --- Discovery tests ---
 
 def test_discovery_finds_ima_files_recursively(tmp_path):
@@ -91,14 +77,13 @@ def test_discovery_finds_ima_files_recursively(tmp_path):
     assert len(loader.patient_file_paths) == 2
 
 
-def test_discovery_accepts_dcm_ima_and_mat(tmp_path):
+def test_discovery_accepts_dcm_and_ima(tmp_path):
     _write_dicom(tmp_path / "file.dcm", "P001", "120000")
     _write_dicom(tmp_path / "file.IMA", "P002", "120001")
-    _write_mat(tmp_path / "file.mat", patient_id="P003")
     (tmp_path / "notes.txt").write_text("ignored")
 
     loader = DataLoader(str(tmp_path))
-    assert len(loader.patient_file_paths) == 3
+    assert len(loader.patient_file_paths) == 2
 
 
 def test_discovery_skips_dicoms_without_required_tags(tmp_path):
@@ -169,22 +154,7 @@ def test_dcm_file_uses_dcm_loader(tmp_path):
     _write_dicom(tmp_path / "ecg.IMA", "P001", "120000")
     loader = DataLoader(str(tmp_path))
 
-    with patch("ecg_annotator.loaders.data_loader.load_dcm_ecg") as mock_dcm, \
-         patch("ecg_annotator.loaders.data_loader.load_mat_ecg") as mock_mat:
+    with patch("ecg_annotator.loaders.data_loader.load_dcm_ecg") as mock_dcm:
         loader.load_patient_by_idx(0)
 
     mock_dcm.assert_called_once()
-    mock_mat.assert_not_called()
-
-
-def test_mat_file_uses_mat_loader(tmp_path):
-    """load_patient_by_idx must call load_mat_ecg for .mat files."""
-    _write_mat(tmp_path / "ecg.mat", patient_id="P001")
-    loader = DataLoader(str(tmp_path))
-
-    with patch("ecg_annotator.loaders.data_loader.load_dcm_ecg") as mock_dcm, \
-         patch("ecg_annotator.loaders.data_loader.load_mat_ecg") as mock_mat:
-        loader.load_patient_by_idx(0)
-
-    mock_mat.assert_called_once()
-    mock_dcm.assert_not_called()
