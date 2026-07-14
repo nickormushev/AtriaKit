@@ -463,7 +463,19 @@ class ECGAnnotator:
             ]
         )
 
-        if self.plotter.get_ignored_leads()[lead_idx]:
+        # HOTFIX: guard against lead_idx outrunning the ignore-checkbox list. This
+        # shouldn't happen (both are sized from the same lead count), but it has
+        # been observed after certain view-navigation interactions; log the actual
+        # sizes so the real desync can be diagnosed instead of crashing the click.
+        ignored_leads = self.plotter.get_ignored_leads()
+        if lead_idx >= len(ignored_leads):
+            log.warning(
+                "on_click: lead_idx=%d out of range for %d ignore checkbox(es) "
+                "(cached_scaled_leads has %d entries); dropping click.",
+                lead_idx, len(ignored_leads), len(self.cached_scaled_leads),
+            )
+            return
+        if ignored_leads[lead_idx]:
             return
 
         # Snap to nearest point on line
