@@ -1,8 +1,8 @@
 import pytest
 
-from ecg_annotator.annotations.state import AnnotationSession
+from ecg_annotator.models.state import AnnotationSession
 from ecg_annotator.annotations.validation import validate_annotation_session
-from ecg_annotator.annotations.serialization import build_annotation_rows
+from ecg_annotator.annotations.row_builder import build_annotation_rows
 
 
 def make_session():

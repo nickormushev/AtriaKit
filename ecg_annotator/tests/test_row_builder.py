@@ -1,5 +1,5 @@
-from ecg_annotator.annotations.state import AnnotationSession, LeadAnnotationState
-from ecg_annotator.annotations.serialization import build_annotation_rows
+from ecg_annotator.models.state import AnnotationSession, LeadAnnotationState
+from ecg_annotator.annotations.row_builder import build_annotation_rows
 
 _sample = lambda t: int(t * 1000)  # 1000 Hz identity helper
 

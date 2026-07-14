@@ -1,7 +1,24 @@
 [project]
 name = "ecg-annotator"
 version = "0.1.0"
+description = "Desktop tool for manually annotating P-wave onsets, offsets, and QRS onsets in 12-lead ECG DICOM recordings"
+readme = "README.md"
 requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Nikolay Kormushev", email = "nkormushev@ethz.ch" },
+]
+keywords = ["ecg", "electrocardiogram", "annotation", "dicom", "p-wave"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
 dependencies = [
     "PyQt6>=6.10.0",
     "pyqtgraph>=0.13.7",
@@ -10,11 +27,23 @@ dependencies = [
     "pydicom>=3.0.1",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-qt>=4.4",
+    "pyinstaller>=6.0",
+]
+
 [project.scripts]
 ecg-annotator = "ecg_annotator.main:main"
 
+[project.urls]
+Homepage = "https://github.com/nickormushev/AtriaKit/tree/main/ecg_annotator"
+Repository = "https://github.com/nickormushev/AtriaKit"
+Issues = "https://github.com/nickormushev/AtriaKit/issues"
+
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

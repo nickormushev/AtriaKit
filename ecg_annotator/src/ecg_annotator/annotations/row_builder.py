@@ -1,4 +1,4 @@
-from ecg_annotator.annotations.state import AnnotationSession
+from ecg_annotator.models.state import AnnotationSession
 from ecg_annotator.annotations.mapper import map_red_to_green_with_gaps
 
 

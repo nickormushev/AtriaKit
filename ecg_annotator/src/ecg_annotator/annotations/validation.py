@@ -1,4 +1,4 @@
-from ecg_annotator.annotations.state import AnnotationSession, Point
+from ecg_annotator.models.state import AnnotationSession, Point
 from ecg_annotator.annotations.mapper import map_red_to_green_with_gaps
 from ecg_annotator.utils.time import sec_to_hms
 

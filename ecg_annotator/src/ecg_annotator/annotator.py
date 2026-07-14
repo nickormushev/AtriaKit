@@ -4,8 +4,8 @@ from pathlib import Path
 
 import numpy as np
 
-from ecg_annotator.annotations.serialization import build_annotation_rows
-from ecg_annotator.annotations.state import AnnotationSession
+from ecg_annotator.annotations.row_builder import build_annotation_rows
+from ecg_annotator.models.state import AnnotationSession
 from ecg_annotator.annotations.validation import validate_annotation_session
 from ecg_annotator.config import AppConfig
 from ecg_annotator.const import LEAD_NAMES, MAIN_ECG_LEAD_NAMES

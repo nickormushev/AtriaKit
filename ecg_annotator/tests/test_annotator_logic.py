@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from ecg_annotator.annotator import ECGAnnotator
-from ecg_annotator.annotations.state import AnnotationSession
+from ecg_annotator.models.state import AnnotationSession
 from ecg_annotator.const import MAIN_ECG_LEAD_NAMES
 from ecg_annotator.models.recording import ECGRecording, PatientInfo
 

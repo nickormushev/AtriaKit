@@ -7,6 +7,8 @@ __pycache__/
 *.xlsx
 *.7z
 *.png
+!docs/*.png
+!ecg_annotator/docs/*.png
 *.svg
 *.txt
 *.log

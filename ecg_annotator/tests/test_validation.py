@@ -1,5 +1,5 @@
 import pytest
-from ecg_annotator.annotations.state import AnnotationSession, LeadAnnotationState
+from ecg_annotator.models.state import AnnotationSession, LeadAnnotationState
 from ecg_annotator.annotations.validation import validate_annotation_session
 
 CST = "000000"
