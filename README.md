@@ -269,9 +269,7 @@ The repository favors a pragmatic research-code style, but the core package is s
 
 ## Citation
 
-<!-- TODO: fill in once the paper is public -->
-
-If you use AtriaKit in your research, please cite:
+The accompanying manuscript has been submitted and is not yet published; a full citation will be added here once it is. In the meantime, if you use AtriaKit in your research, please cite the software directly:
 
 ```bibtex
 @software{atriakit,
