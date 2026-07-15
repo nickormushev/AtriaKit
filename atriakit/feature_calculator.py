@@ -10,7 +10,8 @@ import pandas as pd
 
 import atriakit.features.amplitude as amplitude_features
 from atriakit.models.annotations import Annotations
-from atriakit.configs.feature_calculator_config import FeatureCalculatorConfig
+from atriakit.configs.feature_computation_config import FeatureComputationConfig
+from atriakit.configs.segment_config import SegmentConfig
 from atriakit.configs.signal_preprocessor_config import (
     default_morphology_preprocessor_config,
     default_signal_preprocessor_config,
@@ -91,19 +92,18 @@ class FeatureCalculators:
         signal_preprocessor: Preprocessor for amplitude and duration features.
         morphology_preprocessor: Preprocessor for shape-based features; uses a
             narrower bandpass to capture the general P-wave shape.
-        noise_estimation_window_ms: Pre-onset window (ms) used to estimate per-lead baseline noise.
         segment_processor: Extracts annotation-bounded, baseline-corrected
             segments and computes metrics over them; see ``SegmentConfig``.
     """
 
     def __init__(
         self,
-        config: FeatureCalculatorConfig = None,
+        segment_config: SegmentConfig | None = None,
         signal_preprocessor: SignalPreprocessor | None = None,
         morphology_preprocessor: SignalPreprocessor | None = None,
     ):
-        if config is None:
-            config = FeatureCalculatorConfig()
+        if segment_config is None:
+            segment_config = SegmentConfig()
 
         self.signal_preprocessor = signal_preprocessor or SignalPreprocessor(
             default_signal_preprocessor_config()
@@ -111,8 +111,7 @@ class FeatureCalculators:
         self.morphology_preprocessor = morphology_preprocessor or SignalPreprocessor(
             default_morphology_preprocessor_config()
         )
-        self.noise_estimation_window_ms = config.noise_estimation_window_ms
-        self.segment_processor = SegmentProcessor(config.segment_config)
+        self.segment_processor = SegmentProcessor(segment_config)
 
     @staticmethod
     def _identity_segment(segment: np.ndarray, _row) -> np.ndarray:
@@ -833,7 +832,7 @@ class FeatureCalculators:
         annotations: Annotations,
         ecg_data: ECGData,
         lead_signal: np.ndarray | None = None,
-        window_in_ms: int | None = None,
+        window_in_ms: int = 50,
         sd_threshold: int = 3,
     ) -> list:
         """Estimate baseline noise per lead as the average pre-onset standard deviation.
@@ -846,8 +845,7 @@ class FeatureCalculators:
             annotations: P-wave annotations.
             ecg_data: ECG signal source.
             lead_signal: Precomputed signal array; pass for synthetic signals like VCG.
-            window_in_ms: Pre-onset window length in ms; defaults to
-                ``noise_estimation_window_ms`` from config.
+            window_in_ms: Pre-onset window length in ms (default 50).
             sd_threshold: Windows where ``sd_threshold * noise_std >= p_wave_max``
                 are excluded (default 3).
 
@@ -873,9 +871,6 @@ class FeatureCalculators:
                 lambda x, _: np.max(np.abs(x)),
                 get_signal=lambda row: lead_signal,
             )
-
-        if window_in_ms is None:
-            window_in_ms = self.noise_estimation_window_ms
 
         per_lead_noise_estimates = []
         sampling_rate = ecg_data.get_sampling_frequency()
@@ -1179,16 +1174,7 @@ class FeatureCalculators:
         self,
         annotations: Annotations,
         ecg_data: ECGData,
-        *,
-        extrema_threshold_multiplier: float,
-        shannon_entropy_n_bins: int,
-        shannon_entropy_bin_range,
-        sample_entropy_m: int,
-        sample_entropy_r_factor: float,
-        noise_sd_multiplier: float,
-        fragment_noise_multiplier: float,
-        min_fragment_length_ms: float,
-        normalize_by_duration: bool,
+        feature_computation_config: FeatureComputationConfig,
     ) -> dict:
         fs = ecg_data.get_sampling_frequency()
 
@@ -1223,19 +1209,19 @@ class FeatureCalculators:
             "complexity": self.complexity(
                 annotations,
                 ecg_data,
-                threshold_multiplier=extrema_threshold_multiplier,
+                threshold_multiplier=feature_computation_config.extrema_threshold_multiplier,
             ),
             "shannon_entropy": self.get_shannon_entropy(
                 annotations,
                 ecg_data,
-                n_bins=shannon_entropy_n_bins,
-                bin_range=shannon_entropy_bin_range,
+                n_bins=feature_computation_config.shannon_entropy_n_bins,
+                bin_range=feature_computation_config.shannon_entropy_bin_range,
             ),
             "sample_entropy": self.get_sample_entropy(
                 annotations,
                 ecg_data,
-                m=sample_entropy_m,
-                r_factor=sample_entropy_r_factor,
+                m=feature_computation_config.sample_entropy_m,
+                r_factor=feature_computation_config.sample_entropy_r_factor,
             ),
         }
 
@@ -1246,10 +1232,10 @@ class FeatureCalculators:
         ) = self.fragment_metrics(
             annotations,
             ecg_data,
-            normalize_by_duration=normalize_by_duration,
-            min_fragment_length_ms=min_fragment_length_ms,
-            noise_sd_multiplier=noise_sd_multiplier,
-            fragment_noise_multiplier=fragment_noise_multiplier,
+            normalize_by_duration=feature_computation_config.normalize_by_duration,
+            min_fragment_length_ms=feature_computation_config.min_fragment_length_ms,
+            noise_sd_multiplier=feature_computation_config.noise_sd_multiplier,
+            fragment_noise_multiplier=feature_computation_config.fragment_noise_multiplier,
         )
 
         return group_features
@@ -1266,11 +1252,7 @@ class FeatureCalculators:
         self,
         annotations: Annotations,
         ecg_data: ECGData,
-        *,
-        noise_sd_multiplier: float,
-        fragment_noise_multiplier: float,
-        min_fragment_length_ms: float,
-        normalize_by_duration: bool,
+        feature_computation_config: FeatureComputationConfig,
     ) -> pd.DataFrame:
         missing = set(VCG_LEADS) - set(ecg_data.get_lead_to_index())
         if missing:
@@ -1298,10 +1280,10 @@ class FeatureCalculators:
                 annotations,
                 ecg_data,
                 mode=mode,
-                normalize_by_duration=normalize_by_duration,
-                min_fragment_length_ms=min_fragment_length_ms,
-                noise_sd_multiplier=noise_sd_multiplier,
-                fragment_noise_multiplier=fragment_noise_multiplier,
+                normalize_by_duration=feature_computation_config.normalize_by_duration,
+                min_fragment_length_ms=feature_computation_config.min_fragment_length_ms,
+                noise_sd_multiplier=feature_computation_config.noise_sd_multiplier,
+                fragment_noise_multiplier=feature_computation_config.fragment_noise_multiplier,
             )
 
         vcg_frag = {
@@ -1342,68 +1324,35 @@ class FeatureCalculators:
         self,
         annotations: Annotations,
         ecg_data: ECGData,
-        extrema_threshold_multiplier: float = 0.1,
-        shannon_entropy_n_bins: int = 32,
-        shannon_entropy_bin_range: tuple | None = None,
-        sample_entropy_m: int = 2,
-        sample_entropy_r_factor: float = 0.25,
-        noise_sd_multiplier: float = 3.0,
-        fragment_noise_multiplier: float = 3.0,
-        morphology_min_phase_fraction: float = 0.1,
-        morphology_noise_sd_multiplier: float = 3.0,
-        min_fragment_length_ms: float = 0.0,
-        normalize_by_duration: bool = False,
+        feature_computation_config: FeatureComputationConfig | None = None,
     ) -> pd.DataFrame:
         """Compute all P-wave features for a group of annotations.
 
         For batch use, prefer ``Pipeline``, which calls this method with
-        parameters drawn from ``PipelineConfig``.
+        ``PipelineConfig.feature_computation``.
 
         Args:
             annotations: P-wave annotations for a single recording.
             ecg_data: ECG signal source.
-
-            # complexity():
-            extrema_threshold_multiplier: Peak must exceed this fraction of max
-                amplitude to count as an extremum.
-
-            # get_shannon_entropy():
-            shannon_entropy_n_bins: Number of histogram bins.
-            shannon_entropy_bin_range: Amplitude range (min, max) for the histogram;
-                ``None`` uses the segment's own min/max.
-
-            # get_sample_entropy():
-            sample_entropy_m: Template length (embedding dimension).
-            sample_entropy_r_factor: Tolerance as a fraction of segment standard deviation.
-
-            # estimate_noise() / fragment_metrics() / vcg_fragments():
-            noise_sd_multiplier: Pre-onset windows whose std exceeds this many multiples
-                of the estimated noise are excluded from the noise estimate.
-            fragment_noise_multiplier: A fragment boundary must produce an amplitude
-                change exceeding this many noise SDs to count as a valid fragment.
-
-            # classify_p_wave_morphology():
-            morphology_min_phase_fraction: Minimum fraction of segment length a sign
-                group must span to count as a distinct morphology phase.
-            morphology_noise_sd_multiplier: Noise SD multiplier used inside the
-                morphology classifier.
-
-            # fragment_metrics() / vcg_fragments():
-            min_fragment_length_ms: Fragments shorter than this (ms) are discarded.
-            normalize_by_duration: If ``True``, normalize fragment metrics per 100 ms
-                of P-wave duration.
+            feature_computation_config: Feature-computation parameters
+                (entropy, complexity, noise, morphology, fragmentation
+                settings). Defaults to ``FeatureComputationConfig()`` if
+                omitted.
 
         Returns:
             DataFrame indexed like ``annotations``, with one column per feature.
         """
+        if feature_computation_config is None:
+            feature_computation_config = FeatureComputationConfig()
+
         working_annotations = annotations.copy()
 
         phase_types, inflection_points = self.classify_p_wave_morphology(
             working_annotations,
             ecg_data,
-            morphology_min_phase_fraction=morphology_min_phase_fraction,
-            morphology_noise_sd_multiplier=morphology_noise_sd_multiplier,
-            noise_sd_multiplier=noise_sd_multiplier,
+            morphology_min_phase_fraction=feature_computation_config.morphology_min_phase_fraction,
+            morphology_noise_sd_multiplier=feature_computation_config.morphology_noise_sd_multiplier,
+            noise_sd_multiplier=feature_computation_config.noise_sd_multiplier,
         )
         working_annotations["p_wave_morphology"] = phase_types
         working_annotations["inflection_point"] = inflection_points
@@ -1414,15 +1363,7 @@ class FeatureCalculators:
             **self._build_group_features(
                 working_annotations,
                 ecg_data,
-                extrema_threshold_multiplier=extrema_threshold_multiplier,
-                shannon_entropy_n_bins=shannon_entropy_n_bins,
-                shannon_entropy_bin_range=shannon_entropy_bin_range,
-                sample_entropy_m=sample_entropy_m,
-                sample_entropy_r_factor=sample_entropy_r_factor,
-                noise_sd_multiplier=noise_sd_multiplier,
-                fragment_noise_multiplier=fragment_noise_multiplier,
-                min_fragment_length_ms=min_fragment_length_ms,
-                normalize_by_duration=normalize_by_duration,
+                feature_computation_config,
             ),
         }
         features_df = pd.DataFrame(group_features, index=working_annotations.index)
@@ -1449,10 +1390,7 @@ class FeatureCalculators:
         vcg_df = self._build_vcg_feature_frame(
             working_annotations,
             ecg_data,
-            noise_sd_multiplier=noise_sd_multiplier,
-            fragment_noise_multiplier=fragment_noise_multiplier,
-            min_fragment_length_ms=min_fragment_length_ms,
-            normalize_by_duration=normalize_by_duration,
+            feature_computation_config,
         )
 
         # Merge VCG features into features_df

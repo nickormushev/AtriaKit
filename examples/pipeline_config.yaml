@@ -7,44 +7,44 @@ debug: false
 annotations:
   boundary_mode: cross_lead  # "cross_lead" (default) or "per_lead"
 
-signal_preprocessor:
-  lowcut: 1
-  highcut: 40
-  notch_freq: 50.0
-  normalization_type: none
-  global_baseline_mode: p_onset_spline  # "none" or "p_onset_spline"
-  global_baseline_smoothing_factor: 0
-
-morphology_preprocessor:
-  lowcut: 1
-  highcut: 30
-  notch_freq: 50.0
-  normalization_type: none
-  global_baseline_mode: p_onset_spline  # "none" or "p_onset_spline"
-  global_baseline_smoothing_factor: 0
-
-# feature_calculator:
-#   noise_estimation_window_ms: 50
-#   segment_config:
-#     baseline_correction_type: none  # "none", "linear", or "onset"
-#     skip_first_ms: 0
-
 pipeline:
   group_tolerance_ms: 200
-  # Entropy
-  shannon_entropy_n_bins: 128
-  shannon_entropy_bin_range: [-2.0, 2.0]
-  sample_entropy_m: 2
-  sample_entropy_r_factor: 0.25
-  # Complexity
-  extrema_threshold_multiplier: 0.1
-  # Noise & morphology
-  noise_sd_multiplier: 3.0
-  morphology_min_phase_fraction: 0.1
-  morphology_noise_sd_multiplier: 3.0
-  # Fragmentation
-  min_fragment_length_ms: 0.0
-  normalize_by_duration: false
+
+  signal_preprocessor_config:
+    lowcut: 1
+    highcut: 40
+    notch_freq: 50.0
+    normalization_type: none
+    global_baseline_mode: p_onset_spline  # "none" or "p_onset_spline"
+    global_baseline_smoothing_factor: 0
+
+  morphology_preprocessor_config:
+    lowcut: 1
+    highcut: 30
+    notch_freq: 50.0
+    normalization_type: none
+    global_baseline_mode: p_onset_spline  # "none" or "p_onset_spline"
+    global_baseline_smoothing_factor: 0
+
+  segment_config:
+    baseline_correction_type: none  # "none", "linear", or "onset"
+    skip_first_ms: 0
+
+  feature_computation:
+    # Entropy
+    shannon_entropy_n_bins: 128
+    shannon_entropy_bin_range: [-2.0, 2.0]
+    sample_entropy_m: 2
+    sample_entropy_r_factor: 0.25
+    # Complexity
+    extrema_threshold_multiplier: 0.1
+    # Noise & morphology
+    noise_sd_multiplier: 3.0
+    morphology_min_phase_fraction: 0.1
+    morphology_noise_sd_multiplier: 3.0
+    # Fragmentation
+    min_fragment_length_ms: 0.0
+    normalize_by_duration: false
 
 run:
   cache_dir: ../outputs/cache

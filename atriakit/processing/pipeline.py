@@ -1,32 +1,26 @@
-
-
 import hashlib
 import logging
 from dataclasses import fields
 from pathlib import Path
-import yaml
 
 import numpy as np
 import pandas as pd
+import yaml
 from tqdm import tqdm
 
 from atriakit.configs.annotations_loader_config import AnnotationsLoaderConfig
-from atriakit.configs.feature_calculator_config import FeatureCalculatorConfig
+from atriakit.configs.feature_computation_config import FeatureComputationConfig
 from atriakit.configs.pipeline_config import PipelineConfig
 from atriakit.configs.segment_config import SegmentConfig
-from atriakit.configs.signal_preprocessor_config import (
-    SignalPreprocessorConfig,
-    default_morphology_preprocessor_config,
-    default_signal_preprocessor_config,
-)
+from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
+from atriakit.feature_calculator import FeatureCalculators
+from atriakit.io import AnnotationsLoader, ECGLoader
+from atriakit.models.annotation_schema import AnnotationSchema
 from atriakit.models.annotations import Annotations
 from atriakit.models.ecg_data import ECGData
-from atriakit.io import AnnotationsLoader, ECGLoader
 from atriakit.preprocessing import group_p_waves
 from atriakit.preprocessing.signals import SignalPreprocessor
 from atriakit.processing.dataset import ECGDataset
-from atriakit.feature_calculator import FeatureCalculators
-from atriakit.models.annotation_schema import AnnotationSchema
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,31 +31,17 @@ class Pipeline:
     Args:
         ecg_base_path: Base directory containing the ECG files referenced by
             the annotation table. Defaults to the current directory.
-        pipeline_config: Feature-computation parameters (entropy bins, noise
-            thresholds, fragmentation settings). Defaults to ``PipelineConfig()``.
-        feature_calculator_config: Segment-boundary/baseline-correction and
-            noise-estimation settings. Defaults to ``FeatureCalculatorConfig()``.
+        pipeline_config: Batch pipeline parameters, entropy/complexity/noise/
+            morphology/fragmentation settings, segment-boundary/baseline
+            correction settings, preprocessing filters, and beat-grouping
+            tolerance. Defaults to ``PipelineConfig()``.
         loader: ECG file loader. Defaults to ``ECGLoader()``.
-        group_tolerance_ms: Max time gap (ms) between per-lead annotations to
-            group them as the same beat. Overrides ``pipeline_config.group_tolerance_ms``
-            when provided.
-        signal_preprocessor_config: Preprocessing settings for amplitude and
-            duration features. Defaults to ``default_signal_preprocessor_config()``.
-        morphology_preprocessor_config: Preprocessing settings for shape-based
-            features. Defaults to ``default_morphology_preprocessor_config()``.
         debug: Emit additional debug logging. Defaults to ``False``.
         logger: Logger instance. Defaults to the module logger.
 
     Attributes:
         ecg_base_path: Resolved base directory for ECG files.
-        pipeline_config: Active feature-computation config.
-        fc_config: Segment-boundary/baseline-correction and noise-estimation
-            settings, passed to ``FeatureCalculators`` in ``run()``.
-        group_tolerance_ms: Beat-grouping tolerance in milliseconds.
-        signal_preprocessor_config: Preprocessing settings for amplitude and
-            duration features, as given at construction (not yet fit).
-        morphology_preprocessor_config: Preprocessing settings for shape-based
-            features, as given at construction (not yet fit).
+        pipeline_config: Active pipeline config.
     """
 
     def __init__(
@@ -69,30 +49,14 @@ class Pipeline:
         *,
         ecg_base_path: str | Path = ".",
         pipeline_config: PipelineConfig | None = None,
-        feature_calculator_config: FeatureCalculatorConfig | None = None,
         loader: ECGLoader | None = None,
-        group_tolerance_ms: int | None = None,
-        signal_preprocessor_config: SignalPreprocessorConfig | None = None,
-        morphology_preprocessor_config: SignalPreprocessorConfig | None = None,
         debug: bool = False,
         logger: logging.Logger | None = None,
     ):
         self.ecg_base_path = Path(ecg_base_path)
         self.loader = loader or ECGLoader()
         self.debug = debug
-        self.fc_config = feature_calculator_config or FeatureCalculatorConfig()
         self.pipeline_config = pipeline_config or PipelineConfig()
-        self.group_tolerance_ms = (
-            self.pipeline_config.group_tolerance_ms
-            if group_tolerance_ms is None
-            else group_tolerance_ms
-        )
-        self.signal_preprocessor_config = (
-            signal_preprocessor_config or default_signal_preprocessor_config()
-        )
-        self.morphology_preprocessor_config = (
-            morphology_preprocessor_config or default_morphology_preprocessor_config()
-        )
         self.logger = logger or LOGGER
 
     @staticmethod
@@ -121,6 +85,27 @@ class Pipeline:
         if unknown_keys:
             unknown = ", ".join(sorted(unknown_keys))
             raise ValueError(f"Unknown keys in '{section_name}' config: {unknown}.")
+
+    @classmethod
+    def _resolve_nested_config(
+        cls,
+        section: dict,
+        key: str,
+        config_cls: type,
+        section_name: str,
+    ) -> None:
+        """Replace ``section[key]`` in place with a ``config_cls`` instance, if present."""
+        if key not in section:
+            return
+        value = section[key]
+        if not isinstance(value, dict):
+            raise ValueError(f"'{section_name}' config must be a mapping.")
+        cls._validate_mapping_keys(
+            value,
+            section_name=section_name,
+            allowed_keys={field.name for field in fields(config_cls)},
+        )
+        section[key] = config_cls(**value)
 
     @staticmethod
     def _resolve_optional_path(
@@ -151,28 +136,18 @@ class Pipeline:
                 "cache_dir",
                 "debug",
                 "ecg_base_path",
-                "feature_calculator",
-                "group_tolerance_ms",
-                "morphology_preprocessor",
                 "pipeline",
                 "run",
                 "save_path",
-                "signal_preprocessor",
             },
         )
 
         annotations_section = config.get("annotations") or {}
-        feature_calculator_section = dict(config.get("feature_calculator") or {})
-        signal_preprocessor_section = config.get("signal_preprocessor") or {}
-        morphology_preprocessor_section = config.get("morphology_preprocessor") or {}
-        pipeline_section = config.get("pipeline") or {}
+        pipeline_section = dict(config.get("pipeline") or {})
         run_section = config.get("run") or {}
 
         for section_name, section_value in (
             ("annotations", annotations_section),
-            ("feature_calculator", feature_calculator_section),
-            ("signal_preprocessor", signal_preprocessor_section),
-            ("morphology_preprocessor", morphology_preprocessor_section),
             ("pipeline", pipeline_section),
             ("run", run_section),
         ):
@@ -185,36 +160,33 @@ class Pipeline:
             allowed_keys={field.name for field in fields(AnnotationsLoaderConfig)},
         )
         cls._validate_mapping_keys(
-            feature_calculator_section,
-            section_name="feature_calculator",
-            allowed_keys={field.name for field in fields(FeatureCalculatorConfig)},
-        )
-        if "segment_config" in feature_calculator_section:
-            segment_section = feature_calculator_section["segment_config"]
-            if not isinstance(segment_section, dict):
-                raise ValueError(
-                    "'feature_calculator.segment_config' config must be a mapping."
-                )
-            cls._validate_mapping_keys(
-                segment_section,
-                section_name="feature_calculator.segment_config",
-                allowed_keys={field.name for field in fields(SegmentConfig)},
-            )
-            feature_calculator_section["segment_config"] = SegmentConfig(**segment_section)
-        cls._validate_mapping_keys(
-            signal_preprocessor_section,
-            section_name="signal_preprocessor",
-            allowed_keys={field.name for field in fields(SignalPreprocessorConfig)},
-        )
-        cls._validate_mapping_keys(
-            morphology_preprocessor_section,
-            section_name="morphology_preprocessor",
-            allowed_keys={field.name for field in fields(SignalPreprocessorConfig)},
-        )
-        cls._validate_mapping_keys(
             pipeline_section,
             section_name="pipeline",
             allowed_keys={field.name for field in fields(PipelineConfig)},
+        )
+        cls._resolve_nested_config(
+            pipeline_section,
+            "feature_computation",
+            FeatureComputationConfig,
+            "pipeline.feature_computation",
+        )
+        cls._resolve_nested_config(
+            pipeline_section,
+            "segment_config",
+            SegmentConfig,
+            "pipeline.segment_config",
+        )
+        cls._resolve_nested_config(
+            pipeline_section,
+            "signal_preprocessor_config",
+            SignalPreprocessorConfig,
+            "pipeline.signal_preprocessor_config",
+        )
+        cls._resolve_nested_config(
+            pipeline_section,
+            "morphology_preprocessor_config",
+            SignalPreprocessorConfig,
+            "pipeline.morphology_preprocessor_config",
         )
         cls._validate_mapping_keys(
             run_section,
@@ -227,9 +199,7 @@ class Pipeline:
             config_dir=config_dir,
         )
         if ecg_base_path is None:
-            raise ValueError(
-                "'ecg_base_path' is required in the YAML config."
-            )
+            raise ValueError("'ecg_base_path' is required in the YAML config.")
 
         annotations_dir = cls._resolve_optional_path(
             config.get("annotations_dir"),
@@ -245,25 +215,15 @@ class Pipeline:
             )
 
         annotations_loader_config = AnnotationsLoaderConfig(**annotations_section)
-        annotations_path = annotations_dir if annotations_dir is not None else annotations_csv
-        annotations = AnnotationsLoader(config=annotations_loader_config).load(annotations_path)
+        annotations_path = (
+            annotations_dir if annotations_dir is not None else annotations_csv
+        )
+        annotations = AnnotationsLoader(config=annotations_loader_config).load(
+            annotations_path
+        )
 
         pipeline_kwargs = {
             "ecg_base_path": ecg_base_path,
-            "feature_calculator_config": FeatureCalculatorConfig(
-                **feature_calculator_section
-            ),
-            "group_tolerance_ms": config.get("group_tolerance_ms"),
-            "signal_preprocessor_config": (
-                SignalPreprocessorConfig(**signal_preprocessor_section)
-                if signal_preprocessor_section
-                else None
-            ),
-            "morphology_preprocessor_config": (
-                SignalPreprocessorConfig(**morphology_preprocessor_section)
-                if morphology_preprocessor_section
-                else None
-            ),
             "pipeline_config": PipelineConfig(**pipeline_section),
             "debug": config.get("debug", False),
         }
@@ -323,7 +283,9 @@ class Pipeline:
                 keys, is missing ``ecg_base_path``, or does not specify
                 exactly one of ``annotations_dir``/``annotations_csv``.
         """
-        pipeline_kwargs, annotations, run_kwargs = cls._pipeline_kwargs_from_yaml(config_path)
+        pipeline_kwargs, annotations, run_kwargs = cls._pipeline_kwargs_from_yaml(
+            config_path
+        )
         pipeline = cls(**pipeline_kwargs)
         return pipeline.run(
             annotations,
@@ -352,7 +314,9 @@ class Pipeline:
             dataset_dir=str(self.ecg_base_path),
             loader=self.loader,
         )
-        mean, std = ecg_dataset.calculate_mean_std_p_waves(annotations, preprocessor=preprocessor)
+        mean, std = ecg_dataset.calculate_mean_std_p_waves(
+            annotations, preprocessor=preprocessor
+        )
 
         if save_path is not None:
             Path(save_path).parent.mkdir(parents=True, exist_ok=True)
@@ -418,7 +382,6 @@ class Pipeline:
             ]
             yield file_path, type_groups
 
-
     def run(
         self,
         annotations: Annotations,
@@ -445,7 +408,9 @@ class Pipeline:
             annotations[AnnotationSchema.FILE_PATH].nunique(),
         )
 
-        morphology_preprocessor = SignalPreprocessor(self.morphology_preprocessor_config)
+        morphology_preprocessor = SignalPreprocessor(
+            self.pipeline_config.morphology_preprocessor_config
+        )
         if morphology_preprocessor.uses_normalization():
             self.logger.info("Preparing morphology normalization statistics.")
             morphology_preprocessor = self._prepare_preprocessor(
@@ -469,7 +434,7 @@ class Pipeline:
                 morphology_preprocessor.config.normalization_type,
             )
 
-        signal_preprocessor = SignalPreprocessor(self.signal_preprocessor_config)
+        signal_preprocessor = SignalPreprocessor(self.pipeline_config.signal_preprocessor_config)
         if signal_preprocessor.uses_normalization():
             self.logger.info("Preparing feature normalization statistics.")
             signal_preprocessor = self._prepare_preprocessor(
@@ -494,7 +459,7 @@ class Pipeline:
             )
 
         feature_calculators = FeatureCalculators(
-            self.fc_config,
+            self.pipeline_config.segment_config,
             signal_preprocessor=signal_preprocessor,
             morphology_preprocessor=morphology_preprocessor,
         )
@@ -550,25 +515,15 @@ class Pipeline:
                 prepared_subgroup = group_p_waves(
                     subgroup,
                     sampling_rate,
-                    tolerance_in_ms=self.group_tolerance_ms,
+                    tolerance_in_ms=self.pipeline_config.group_tolerance_ms,
                 )
-                working.loc[
-                    prepared_subgroup.index, prepared_subgroup.columns
-                ] = prepared_subgroup.get_df()
+                working.loc[prepared_subgroup.index, prepared_subgroup.columns] = (
+                    prepared_subgroup.get_df()
+                )
                 features = feature_calculators.compute_all(
                     prepared_subgroup,
                     ecg,
-                    self.pipeline_config.extrema_threshold_multiplier,
-                    self.pipeline_config.shannon_entropy_n_bins,
-                    self.pipeline_config.shannon_entropy_bin_range,
-                    self.pipeline_config.sample_entropy_m,
-                    self.pipeline_config.sample_entropy_r_factor,
-                    self.pipeline_config.noise_sd_multiplier,
-                    self.pipeline_config.fragment_noise_multiplier,
-                    self.pipeline_config.morphology_min_phase_fraction,
-                    self.pipeline_config.morphology_noise_sd_multiplier,
-                    self.pipeline_config.min_fragment_length_ms,
-                    self.pipeline_config.normalize_by_duration,
+                    self.pipeline_config.feature_computation,
                 )
                 working.loc[prepared_subgroup.index, features.columns] = features
 

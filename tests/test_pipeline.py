@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from atriakit import Pipeline, PipelineConfig
+from atriakit import FeatureComputationConfig, Pipeline, PipelineConfig
 from atriakit.models.annotations import Annotations
 from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
 from atriakit.feature_calculator import FeatureCalculators
@@ -57,16 +57,18 @@ def test_pipeline_run_batches_by_file_and_type(monkeypatch, tmp_path):
         ecg_base_path=tmp_path,
         loader=fake_loader,
         pipeline_config=PipelineConfig(
-            shannon_entropy_n_bins=128,
-            shannon_entropy_bin_range=(-2.0, 2.0),
-            sample_entropy_m=3,
-            sample_entropy_r_factor=0.5,
-            extrema_threshold_multiplier=0.2,
-        ),
-        signal_preprocessor_config=SignalPreprocessorConfig(
-            lowcut=1,
-            highcut=40,
-            normalization_type="zscore",
+            feature_computation=FeatureComputationConfig(
+                shannon_entropy_n_bins=128,
+                shannon_entropy_bin_range=(-2.0, 2.0),
+                sample_entropy_m=3,
+                sample_entropy_r_factor=0.5,
+                extrema_threshold_multiplier=0.2,
+            ),
+            signal_preprocessor_config=SignalPreprocessorConfig(
+                lowcut=1,
+                highcut=40,
+                normalization_type="zscore",
+            ),
         ),
     )
 
@@ -77,31 +79,16 @@ def test_pipeline_run_batches_by_file_and_type(monkeypatch, tmp_path):
 
     compute_calls = []
 
-    def fake_compute_all(
-        self,
-        annotation_group,
-        ecg_data,
-        extrema_threshold_multiplier,
-        n_bins,
-        bin_range,
-        sample_entropy_m,
-        sample_entropy_r_factor,
-        noise_sd_multiplier,
-        fragment_noise_multiplier,
-        morphology_min_phase_fraction,
-        morphology_noise_sd_multiplier,
-        min_fragment_length_ms,
-        normalize_by_duration,
-    ):
+    def fake_compute_all(self, annotation_group, ecg_data, feature_computation_config):
         assert isinstance(annotation_group, Annotations)
         compute_calls.append(
             {
-                "extrema_threshold_multiplier": extrema_threshold_multiplier,
+                "extrema_threshold_multiplier": feature_computation_config.extrema_threshold_multiplier,
                 "indices": list(annotation_group.index),
-                "n_bins": n_bins,
-                "bin_range": bin_range,
-                "sample_entropy_m": sample_entropy_m,
-                "sample_entropy_r_factor": sample_entropy_r_factor,
+                "n_bins": feature_computation_config.shannon_entropy_n_bins,
+                "bin_range": feature_computation_config.shannon_entropy_bin_range,
+                "sample_entropy_m": feature_computation_config.sample_entropy_m,
+                "sample_entropy_r_factor": feature_computation_config.sample_entropy_r_factor,
                 "signal_preprocessor_mean": self.signal_preprocessor.config.mean,
                 "signal_preprocessor_std": self.signal_preprocessor.config.std,
             }
@@ -198,22 +185,7 @@ def test_pipeline_run_reuses_cached_normalization_stats(monkeypatch, tmp_path):
         fake_calculate_mean_std_p_waves,
     )
 
-    def fake_compute_all(
-        self,
-        annotation_group,
-        ecg_data,
-        extrema_threshold_multiplier,
-        n_bins,
-        bin_range,
-        sample_entropy_m,
-        sample_entropy_r_factor,
-        noise_sd_multiplier,
-        fragment_noise_multiplier,
-        morphology_min_phase_fraction,
-        morphology_noise_sd_multiplier,
-        min_fragment_length_ms,
-        normalize_by_duration,
-    ):
+    def fake_compute_all(self, annotation_group, ecg_data, feature_computation_config):
         return pd.DataFrame(
             {"dummy_feature": np.arange(len(annotation_group.index))},
             index=annotation_group.index,
@@ -222,7 +194,7 @@ def test_pipeline_run_reuses_cached_normalization_stats(monkeypatch, tmp_path):
     monkeypatch.setattr(FeatureCalculators, "compute_all", fake_compute_all)
 
     cache_dir = tmp_path / "cache"
-    preprocessor_kwargs = dict(
+    pipeline_config = PipelineConfig(
         signal_preprocessor_config=SignalPreprocessorConfig(
             lowcut=1, highcut=40, normalization_type="zscore"
         ),
@@ -234,7 +206,7 @@ def test_pipeline_run_reuses_cached_normalization_stats(monkeypatch, tmp_path):
     first_pipeline = Pipeline(
         ecg_base_path=tmp_path,
         loader=_FakeLoader(),
-        **preprocessor_kwargs,
+        pipeline_config=pipeline_config,
     )
     first_pipeline.run(annotations, cache_dir=cache_dir)
 
@@ -244,7 +216,7 @@ def test_pipeline_run_reuses_cached_normalization_stats(monkeypatch, tmp_path):
     second_pipeline = Pipeline(
         ecg_base_path=tmp_path,
         loader=_FakeLoader(),
-        **preprocessor_kwargs,
+        pipeline_config=pipeline_config,
     )
     second_pipeline.run(annotations, cache_dir=cache_dir)
 
@@ -269,11 +241,13 @@ def test_pipeline_run_skips_normalization_when_disabled_in_preprocessor_config(
     pipeline = Pipeline(
         ecg_base_path=tmp_path,
         loader=_FakeLoader(),
-        signal_preprocessor_config=SignalPreprocessorConfig(
-            lowcut=1, highcut=40, normalization_type="none"
-        ),
-        morphology_preprocessor_config=SignalPreprocessorConfig(
-            lowcut=1, highcut=30, normalization_type="none"
+        pipeline_config=PipelineConfig(
+            signal_preprocessor_config=SignalPreprocessorConfig(
+                lowcut=1, highcut=40, normalization_type="none"
+            ),
+            morphology_preprocessor_config=SignalPreprocessorConfig(
+                lowcut=1, highcut=30, normalization_type="none"
+            ),
         ),
     )
 
@@ -314,11 +288,13 @@ def test_pipeline_run_does_not_mutate_caller_annotations(monkeypatch, tmp_path):
     pipeline = Pipeline(
         ecg_base_path=tmp_path,
         loader=_FakeLoader(),
-        signal_preprocessor_config=SignalPreprocessorConfig(
-            lowcut=1, highcut=40, normalization_type="none"
-        ),
-        morphology_preprocessor_config=SignalPreprocessorConfig(
-            lowcut=1, highcut=30, normalization_type="none"
+        pipeline_config=PipelineConfig(
+            signal_preprocessor_config=SignalPreprocessorConfig(
+                lowcut=1, highcut=40, normalization_type="none"
+            ),
+            morphology_preprocessor_config=SignalPreprocessorConfig(
+                lowcut=1, highcut=30, normalization_type="none"
+            ),
         ),
     )
     monkeypatch.setattr(
@@ -354,13 +330,14 @@ def test_pipeline_from_yaml_loads_relative_paths_and_configs(tmp_path):
                 "ecg_base_path: dicoms",
                 "annotations_csv: annotations.csv",
                 "debug: true",
-                "group_tolerance_ms: 123",
-                "signal_preprocessor:",
-                "  lowcut: 2",
-                "  highcut: 30",
-                "  normalization_type: none",
                 "pipeline:",
-                "  shannon_entropy_n_bins: 99",
+                "  group_tolerance_ms: 123",
+                "  signal_preprocessor_config:",
+                "    lowcut: 2",
+                "    highcut: 30",
+                "    normalization_type: none",
+                "  feature_computation:",
+                "    shannon_entropy_n_bins: 99",
             ]
         ),
         encoding="utf-8",
@@ -370,11 +347,11 @@ def test_pipeline_from_yaml_loads_relative_paths_and_configs(tmp_path):
 
     assert pipeline.ecg_base_path == (tmp_path / "dicoms").resolve()
     assert pipeline.debug is True
-    assert pipeline.group_tolerance_ms == 123
-    assert pipeline.signal_preprocessor_config.lowcut == 2
-    assert pipeline.signal_preprocessor_config.highcut == 30
-    assert pipeline.signal_preprocessor_config.normalization_type == "none"
-    assert pipeline.pipeline_config.shannon_entropy_n_bins == 99
+    assert pipeline.pipeline_config.group_tolerance_ms == 123
+    assert pipeline.pipeline_config.signal_preprocessor_config.lowcut == 2
+    assert pipeline.pipeline_config.signal_preprocessor_config.highcut == 30
+    assert pipeline.pipeline_config.signal_preprocessor_config.normalization_type == "none"
+    assert pipeline.pipeline_config.feature_computation.shannon_entropy_n_bins == 99
 
 
 def test_pipeline_run_from_yaml(tmp_path):
@@ -396,14 +373,15 @@ def test_pipeline_run_from_yaml(tmp_path):
             [
                 "ecg_base_path: dicoms",
                 "annotations_csv: annotations.csv",
-                "signal_preprocessor:",
-                "  lowcut: 1",
-                "  highcut: 40",
-                "  normalization_type: none",
-                "morphology_preprocessor:",
-                "  lowcut: 1",
-                "  highcut: 30",
-                "  normalization_type: none",
+                "pipeline:",
+                "  signal_preprocessor_config:",
+                "    lowcut: 1",
+                "    highcut: 40",
+                "    normalization_type: none",
+                "  morphology_preprocessor_config:",
+                "    lowcut: 1",
+                "    highcut: 30",
+                "    normalization_type: none",
             ]
         ),
         encoding="utf-8",

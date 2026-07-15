@@ -87,7 +87,7 @@ from atriakit import (
     ECGDataset,
     ECGLoader,
     FeatureCalculators,
-    FeatureCalculatorConfig,
+    FeatureComputationConfig,
     Pipeline,
     PipelineConfig,
     SegmentConfig,
@@ -102,11 +102,11 @@ Important components:
 - `ECGData`: holds the raw signal array plus lead layout, and returns preprocessed lead signals via a `SignalPreprocessor`
 - `AnnotationsLoader`: loads a CSV or directory of annotation files into an `Annotations` object; also extensible via `.register(extension, loader)` for other annotation file formats
 - `Annotations`: wrapper around the annotation table
-- `FeatureCalculators`: computes ECG and VCG features for annotated segments
-- `FeatureCalculatorConfig`: noise estimation settings
-  - `SegmentConfig`: its `segment_config` field; baseline correction mode and leading-sample skip applied to extracted segments
-- `Pipeline`: runs batch feature extraction over a set of files
-- `PipelineConfig`: pipeline feature-computation parameters (entropy, complexity, noise, morphology, fragmentation, and grouping settings)
+- `FeatureCalculators`: computes ECG and VCG features for annotated segments, constructed with a `SegmentConfig`
+  - `SegmentConfig`: baseline correction mode and leading-sample skip applied to extracted segments
+- `Pipeline`: runs batch feature extraction over a set of files, constructed with a `PipelineConfig`
+- `PipelineConfig`: bundles everything needed to tune a `Pipeline` run: segment-boundary and baseline-correction settings, preprocessing filters for both feature and morphology signals, feature-computation parameters (via `FeatureComputationConfig`), and beat-grouping tolerance
+  - `FeatureComputationConfig`: per-call parameters for `FeatureCalculators.compute_all` (entropy, complexity, noise, morphology, and fragmentation settings)
 - `SignalPreprocessor`: applies notch filtering, bandpass filtering, baseline correction, and normalization as a reusable preprocessing object; each step is optional and toggled independently via `SignalPreprocessorConfig`
 - `ECGDataset`: computes per-lead mean/std across a set of files, for `SignalPreprocessorConfig`'s z-score normalization
 
@@ -121,13 +121,14 @@ Rather than building `PipelineConfig`/`SignalPreprocessorConfig` objects by hand
 ```yaml
 ecg_base_path: ./data
 annotations_dir: ./data
-signal_preprocessor:
-  lowcut: 1
-  highcut: 40
-  notch_freq: 50.0
 pipeline:
   group_tolerance_ms: 200
-  shannon_entropy_n_bins: 128
+  signal_preprocessor_config:
+    lowcut: 1
+    highcut: 40
+    notch_freq: 50.0
+  feature_computation:
+    shannon_entropy_n_bins: 128
 ```
 
 ```python
@@ -139,20 +140,22 @@ Required annotation columns: `file_path`, `lead`, `onset`, `offset`, `p_wave_id`
 
 ### 2. Or configure directly in Python
 
-For programmatic control (e.g. sweeping parameters in a script), pass config objects straight to `Pipeline`:
+For programmatic control (e.g. sweeping parameters in a script), pass a `PipelineConfig` straight to `Pipeline`:
 
 ```python
-from atriakit import Pipeline, PipelineConfig, SignalPreprocessorConfig
+from atriakit import FeatureComputationConfig, Pipeline, PipelineConfig, SignalPreprocessorConfig
 
 pipeline = Pipeline(
     ecg_base_path="path/to/dicom/root",
-    signal_preprocessor_config=SignalPreprocessorConfig(
-        lowcut=1.0, highcut=40.0, notch_freq=50.0
+    pipeline_config=PipelineConfig(
+        signal_preprocessor_config=SignalPreprocessorConfig(
+            lowcut=1.0, highcut=40.0, notch_freq=50.0
+        ),
+        morphology_preprocessor_config=SignalPreprocessorConfig(
+            lowcut=1.0, highcut=30.0, notch_freq=50.0
+        ),
+        feature_computation=FeatureComputationConfig(shannon_entropy_n_bins=128),
     ),
-    morphology_preprocessor_config=SignalPreprocessorConfig(
-        lowcut=1.0, highcut=30.0, notch_freq=50.0
-    ),
-    pipeline_config=PipelineConfig(),
 )
 ```
 
@@ -182,8 +185,6 @@ Signal preprocessing is intentionally separated from feature extraction.
 - runtime normalization state (`mean` / `std`) lives on `SignalPreprocessor`
 - `ECGData` delegates preprocessing to a `SignalPreprocessor`
 - `FeatureCalculators` can use separate preprocessors for standard signal features and morphology-specific features
-
-This keeps filtering logic out of `FeatureCalculatorConfig` and makes it easy to swap preprocessing strategies without changing the rest of the API.
 
 Example:
 

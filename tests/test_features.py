@@ -27,7 +27,6 @@ def make_feature_calculator(**overrides):
     defaults = {
         "baseline_correction_type": "none",
         "skip_first_ms": 0,
-        "noise_estimation_window_ms": 50,
         "signal_preprocessor": SignalPreprocessor(
             SignalPreprocessorConfig(lowcut=None, highcut=None, notch_freq=50)
         ),
@@ -175,7 +174,6 @@ def ecg_processor_with_noise():
     )
 
     processor = MagicMock()
-    processor.noise_estimation_window_ms = 50
     processor.signal_preprocessor = SignalPreprocessor(
         SignalPreprocessorConfig(lowcut=None, highcut=None, notch_freq=50)
     )
