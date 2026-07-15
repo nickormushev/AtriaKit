@@ -17,6 +17,7 @@ __all__ = [
     "BaseLoader",
     "DicomLoader",
     "ECGData",
+    "ECGDataset",
     "ECGLoader",
     "FeatureCalculatorConfig",
     "FeatureCalculators",
@@ -36,6 +37,7 @@ _PUBLIC_IMPORTS = {
     "BaseLoader": ("atriakit.io", "BaseLoader"),
     "DicomLoader": ("atriakit.io", "DicomLoader"),
     "ECGData": ("atriakit.models.ecg_data", "ECGData"),
+    "ECGDataset": ("atriakit.processing.dataset", "ECGDataset"),
     "ECGLoader": ("atriakit.io", "ECGLoader"),
     "FeatureCalculatorConfig": (
         "atriakit.configs.feature_calculator_config",
