@@ -22,6 +22,8 @@ __all__ = [
     "FeatureCalculators",
     "Pipeline",
     "PipelineConfig",
+    "SegmentConfig",
+    "SignalPreprocessor",
     "SignalPreprocessorConfig",
 ]
 
@@ -42,6 +44,8 @@ _PUBLIC_IMPORTS = {
     "FeatureCalculators": ("atriakit.feature_calculator", "FeatureCalculators"),
     "Pipeline": ("atriakit.processing.pipeline", "Pipeline"),
     "PipelineConfig": ("atriakit.configs.pipeline_config", "PipelineConfig"),
+    "SegmentConfig": ("atriakit.configs.segment_config", "SegmentConfig"),
+    "SignalPreprocessor": ("atriakit.preprocessing", "SignalPreprocessor"),
     "SignalPreprocessorConfig": (
         "atriakit.configs.signal_preprocessor_config",
         "SignalPreprocessorConfig",

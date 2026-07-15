@@ -156,7 +156,13 @@ def normalize(arr, mean=None, std=None):
 def convert_ecg_segment_to_vcg(
     ecg_segment: np.ndarray, lead_to_index: dict[str, int]
 ) -> np.ndarray:
-    """Convert a 12-lead ECG segment to XYZ coordinates using the Kors transformation matrix."""
+    """Convert a 12-lead ECG segment to XYZ coordinates using the Kors transformation matrix.
+
+    References:
+        Kors et al. (1990). Reconstruction of the Frank vectorcardiogram from
+        standard electrocardiographic leads: diagnostic comparison of different
+        methods. European Heart Journal, 11(12), 1083-1092.
+    """
     missing = [l for l in _VCG_LEADS if l not in lead_to_index]
     if missing:
         raise ValueError(f"VCG requires {_VCG_LEADS}; missing: {missing}")

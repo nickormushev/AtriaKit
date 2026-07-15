@@ -201,8 +201,10 @@ class FeatureCalculators:
             PTF value per annotation (NaN for skipped or invalid segments).
 
         References:
-            Sclarovsky, S., et al. (2017). P-wave terminal force analysis in ECG.
-            https://www.sciencedirect.com/science/article/pii/S2405500X17311866
+            Jadidi et al. (2018). The duration of the amplified sinus-P-wave
+            identifies presence of left atrial low voltage substrate and predicts
+            outcome after pulmonary vein isolation in patients with persistent
+            atrial fibrillation. JACC: Clinical Electrophysiology, 4(4), 531-543.
         """
         fs = ecg_data.get_sampling_frequency()
         supervised = (
@@ -315,6 +317,10 @@ class FeatureCalculators:
 
         Raises:
             ValueError: If annotations contain no entries for lead I or aVF.
+
+        References:
+            Novosel, Noll & Lüscher (1999). Corrected formula for the calculation
+            of the electrical heart axis. Croatian Medical Journal, 40, 77-79.
         """
         if annotations.empty:
             return []
@@ -692,6 +698,12 @@ class FeatureCalculators:
         Returns:
             Tuple of (morphology labels, inflection point indices) per annotation.
             Failed classifications return ("N/A", -1).
+
+        References:
+            Jadidi et al. (2018). The duration of the amplified sinus-P-wave
+            identifies presence of left atrial low voltage substrate and predicts
+            outcome after pulmonary vein isolation in patients with persistent
+            atrial fibrillation. JACC: Clinical Electrophysiology, 4(4), 531-543.
         """
         if annotations.empty:
             return np.array([]), np.array([])
@@ -1114,6 +1126,10 @@ class FeatureCalculators:
 
         Returns:
             Shannon entropy per annotation.
+
+        References:
+            Shannon (1948). A Mathematical Theory of Communication. Bell System
+            Technical Journal, 27, 379-423, 623-656.
         """
 
         def shannon_entropy_wrapper(segment, _):
@@ -1148,6 +1164,10 @@ class FeatureCalculators:
 
         References:
             Richman & Moorman (2000). https://doi.org/10.1152/ajpheart.2000.278.6.H2039
+            Alcaraz & Rieta (2010). A review on sample entropy applications for the
+            non-invasive analysis of atrial fibrillation electrocardiograms.
+            Biomedical Signal Processing and Control, 5(1), 1-14. (source of the
+            m=2, r_factor=0.25 defaults used here)
         """
 
         def _wrapper(segment: np.ndarray, _) -> float:
