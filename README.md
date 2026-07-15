@@ -6,6 +6,12 @@
 An Open-Source Framework for Reproducible P-Wave Phenotyping
 </p>
 
+<p align="center">
+  <a href="https://github.com/nickormushev/AtriaKit/actions/workflows/tests.yml">
+    <img src="https://github.com/nickormushev/AtriaKit/actions/workflows/tests.yml/badge.svg" alt="Tests">
+  </a>
+</p>
+
 ## Quick Example
 
 The fastest way to try AtriaKit hands-on is `examples/demo.ipynb`, which generates synthetic ECG data and runs it through the full pipeline end to end.
@@ -73,7 +79,7 @@ For development dependencies (testing, etc.):
 pip install -e .[dev]
 ```
 
-The package requires Python 3.10+.
+The package requires Python 3.12+.
 
 ## Core API
 

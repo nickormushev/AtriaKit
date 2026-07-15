@@ -1,26 +1,25 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "atriakit"
 version = "0.1.0"
-description = "ECG feature extraction library"
+description = "An open-source framework for reproducible P-wave phenotyping"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Nikolay Kormushev", email = "nkormushev@ethz.ch" },
+    { name = "Nikolay Kormushev", email = "nkormushev@gmail.com" },
 ]
 keywords = ["ecg", "electrocardiogram", "signal-processing", "feature-extraction"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Medical Science Apps.",
     "Topic :: Scientific/Engineering :: Information Analysis",
@@ -44,18 +43,18 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://gitlab.inf.ethz.ch/nkormushev/feature-library"
-Repository = "https://gitlab.inf.ethz.ch/nkormushev/feature-library"
+Homepage = "https://github.com/nickormushev/AtriaKit"
+Repository = "https://github.com/nickormushev/AtriaKit"
+Issues = "https://github.com/nickormushev/AtriaKit/issues"
 
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["atriakit", "atriakit.*"]
-exclude = ["atriakit.paper*"]
 
-[tool.coverage.report]
-omit = ["atriakit/paper/*"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
