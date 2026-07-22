@@ -32,13 +32,12 @@ def test_get_ecg_cache(ecg_instance):
     assert np.allclose(result1, result2)
 
 
-def test_get_ecg_returns_copy(ecg_instance):
-    """Returned array should not modify the cached array."""
+def test_get_ecg_is_read_only(ecg_instance):
+    """Returned array is frozen so it cannot be mutated in place, protecting the cache."""
     result = ecg_instance.get_ecg()
-    result[0, 0] = 999
 
-    cached = list(ecg_instance._ecg_cache.values())[0]
-    assert cached[0, 0] != 999
+    with pytest.raises(ValueError):
+        result[0, 0] = 999
 
 
 def test_cache_different_norm_params(monkeypatch, ecg_instance):

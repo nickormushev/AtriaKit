@@ -31,10 +31,12 @@ class ECGData:
         self.content_date = content_date
         self.content_start_time = content_time
         self._ecg_cache: dict = {}
+        self._vcg_cache: dict = {}
 
     def set_ecg(self, ecg: np.ndarray) -> None:
         self.ecg = ecg
         self._ecg_cache = {}
+        self._vcg_cache = {}
 
     def get_sampling_frequency(self) -> int | float:
         return self.sampling_frequency
@@ -69,8 +71,9 @@ class ECGData:
             lead_to_index=self._lead_to_index,
         )
 
+        ecg.flags.writeable = False
         self._ecg_cache[cache_key] = ecg
-        return ecg.copy()
+        return ecg
 
     def get_lead_signal(
         self,
@@ -84,11 +87,21 @@ class ECGData:
             raise ValueError(
                 f"Unknown lead: {lead!r}. Valid leads: {list(self._lead_to_index)}"
             ) from err
-        return ecg[lead_idx].copy()
+        return ecg[lead_idx]
 
     def get_vcg(
         self,
         preprocessor: SignalPreprocessor | None = None,
     ) -> np.ndarray:
+        if preprocessor is None:
+            preprocessor = SignalPreprocessor()
+
+        cache_key = preprocessor.cache_key()
+        if cache_key in self._vcg_cache:
+            return self._vcg_cache[cache_key]
+
         ecg = self.get_ecg(preprocessor=preprocessor)
-        return convert_ecg_segment_to_vcg(ecg, self._lead_to_index).copy()
+        vcg = convert_ecg_segment_to_vcg(ecg, self._lead_to_index)
+        vcg.flags.writeable = False
+        self._vcg_cache[cache_key] = vcg
+        return vcg
