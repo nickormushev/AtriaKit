@@ -260,8 +260,6 @@ class ECGAnnotator:
             self.next_signal,
             self.prev_signal,
             list(self.main_lead_names),
-            browse_callback=self.browse_for_patient,
-            get_browse_dir=self._current_browse_dir,
         )
         self.plotter._add_spacing_slider(self.on_spacing_change)
         self._init_plot()
@@ -562,52 +560,37 @@ class ECGAnnotator:
             next_patient_file_idx = -1  # No more files
         self.validate_and_save(next_patient_file_idx, lambda x: x + 1)
 
-    def browse_for_patient(self, directory: str) -> None:
-        """Change the working directory to `directory`, chosen via the browse
-        dialog, and load its first unannotated patient."""
-        if self.plotter.is_popup_visible():
-            return
+    def _find_patient_idx(self, path) -> int:
+        """Return the loaded directory's index for `path`, or -1 if not found."""
+        target = Path(path).resolve()
+        for idx in range(self.ecg_data_loader.get_file_count()):
+            candidate = self.ecg_data_loader.get_path(idx)
+            if candidate and Path(candidate).resolve() == target:
+                return idx
+        return -1
 
-        if self.patient_file_idx == -1:
-            self._switch_directory_and_load(directory)
-            return
+    def open_directory(self, directory, start_path=None) -> None:
+        """Load ECG recordings from `directory`, replacing the current directory.
 
-        try:
-            self.validate_points()
-        except ValueError as ve:
-            self.plotter.show_popup(
-                str(ve),
-                directory,
-                None,
-                self._save_anyway_and_switch_directory,
-                self.annotation_session.annotation_type,
-            )
-            return
-
-        self.save_current_patient()
-        self._switch_directory_and_load(directory)
-
-    def _save_anyway_and_switch_directory(
-        self, directory: str, _update_idx=None
-    ) -> None:
-        self.save_current_patient()
-        self._switch_directory_and_load(directory)
-        self.plotter.close_popup()
-
-    def _switch_directory_and_load(self, directory: str) -> None:
+        If `start_path` is given, jump straight to that file instead of the
+        first unannotated recording.
+        """
         self.ecg_data_loader = DataLoader(directory)
+        start_idx = self._find_patient_idx(start_path) if start_path else -1
+        if start_idx == -1:
+            start_idx = self.get_next_unnanotated_patient_file_idx(-1)
         self._clear_and_load_patient_by_idx(
-            self.get_next_unnanotated_patient_file_idx(-1),
+            start_idx,
             self.get_next_unnanotated_patient_file_idx,
         )
 
-    def _current_browse_dir(self) -> str:
-        current_path = self.ecg_data_loader.get_path(self.patient_file_idx)
-        if current_path:
-            return str(Path(current_path).parent)
-        if self.ecg_data_loader.patient_file_paths:
-            return str(Path(self.ecg_data_loader.patient_file_paths[0]).parent)
-        return str(Path.home())
+    def open_file(self, file_path) -> None:
+        """Load the ECG file at `file_path` directly.
+
+        The other files in its directory stay available for Next/Previous
+        navigation.
+        """
+        self.open_directory(Path(file_path).parent, start_path=file_path)
 
     def validate_and_save(self, next_patient_file_idx, update_idx):
         if self.patient_file_idx == -1:

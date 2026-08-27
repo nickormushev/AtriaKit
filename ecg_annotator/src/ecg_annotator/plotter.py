@@ -9,7 +9,6 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
-    QFileDialog,
     QGraphicsDropShadowEffect,
     QGroupBox,
     QHBoxLayout,
@@ -374,17 +373,9 @@ class ECGPlotter(QtCore.QObject):
         self,
         next_signal_callback,
         prev_signal_callback,
-        browse_callback,
-        get_browse_dir,
     ) -> QHBoxLayout:
         layout = QHBoxLayout()
         layout.addWidget(self._navigation_button("Previous", prev_signal_callback))
-        layout.addWidget(
-            self._navigation_button(
-                "Browse...",
-                lambda: self._on_browse_clicked(browse_callback, get_browse_dir),
-            )
-        )
 
         next_button = self._navigation_button("Save and Next", next_signal_callback)
         next_button.setSizePolicy(
@@ -393,26 +384,6 @@ class ECGPlotter(QtCore.QObject):
         )
         layout.addWidget(next_button)
         return layout
-
-    def _on_browse_clicked(self, browse_callback, get_browse_dir) -> None:
-        """Open a directory picker and forward the chosen directory to the callback.
-
-        Uses Qt's own dialog (not the native OS one) so patient files are
-        listed for context while browsing, even though only a directory can
-        ultimately be selected.
-        """
-        dialog = QFileDialog(self.parent_widget, "Browse for directory")
-        dialog.setDirectory(get_browse_dir())
-        dialog.setFileMode(QFileDialog.FileMode.Directory)
-        dialog.setOption(QFileDialog.Option.ShowDirsOnly, False)
-        dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
-
-        if dialog.exec() != QFileDialog.DialogCode.Accepted:
-            return
-
-        selected = dialog.selectedFiles()
-        if selected:
-            browse_callback(selected[0])
 
     def _build_popup_button(
         self,
@@ -909,8 +880,6 @@ class ECGPlotter(QtCore.QObject):
         next_signal_callback,
         prev_signal_callback,
         lead_names: list[str],
-        browse_callback,
-        get_browse_dir,
     ):
         """Add ignore/confidence controls next to the ECG plot."""
         self.ignore_widget = QWidget()
@@ -939,8 +908,6 @@ class ECGPlotter(QtCore.QObject):
             self._build_navigation_controls(
                 next_signal_callback,
                 prev_signal_callback,
-                browse_callback,
-                get_browse_dir,
             )
         )
 
@@ -954,7 +921,6 @@ class ECGPlotter(QtCore.QObject):
         self.main_container.setLayout(self.main_layout)
         self.main_layout.addWidget(self.parent_widget)
         self.main_layout.addWidget(self.ignore_widget)
-        self.main_container.show()
 
     def get_click_pos_from_event(self, event):
         pos = event.scenePos()

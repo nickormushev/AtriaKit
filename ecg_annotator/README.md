@@ -15,6 +15,8 @@ A desktop application for manually annotating P-wave onsets, offsets, and QRS on
 - Annotate per lead with a click: left-click marks onset (red), right-click marks offset (green), shift + left-click marks QRS onset (blue); clicking an existing mark again removes it
 - Per-lead ignore and confidence controls, plus `Before`/`After`/`Both` annotation type categorization (e.g. marking recordings as pre-ablation, post-ablation, or spanning both, as used in an atrial ablation study)
 - Overview window with region selection for navigating long recordings
+- `File` menu with `Open File...` (jump straight to one recording, siblings
+  in its folder stay available for Next/Previous) and `Open Folder...`
 - Saves annotations to CSV; re-opening a patient resumes at the first
   unannotated recording
 - Can be converted into a standalone executable with PyInstaller, so end
@@ -47,10 +49,13 @@ pip install -e .
 ecg-annotator
 ```
 
-A directory picker will open on launch. Select the folder containing your DICOM (`.IMA`) files; the tool searches recursively.
+The app opens with no recordings loaded. Use the `File` menu to load them:
+`Open Folder...` picks a directory of DICOM (`.IMA`) files (searched
+recursively), `Open File...` opens a single recording while keeping its
+folder siblings available for Next/Previous.
 
-You can also pass the directory (and optionally an output CSV path) directly,
-skipping the picker:
+You can also pass the directory (and optionally an output CSV path) directly
+on the command line:
 
 ```bash
 ecg-annotator /path/to/dicom/dir [/path/to/output.csv]
@@ -93,6 +98,7 @@ pytest
 ```text
 src/ecg_annotator/
 ├── main.py                   # entry point
+├── navigation.py             # main window + File menu (Open File / Open Folder)
 ├── annotator.py              # click handling, annotation session logic
 ├── plotter.py                # ECG viewer, overview window, and lead controls (PyQt6/pyqtgraph)
 ├── config.py                 # app config: thresholds, confidence defaults, output path

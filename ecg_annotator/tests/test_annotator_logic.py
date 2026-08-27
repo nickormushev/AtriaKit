@@ -391,3 +391,50 @@ def test_configure_leads_variable_count_updates_session():
         ann._switch_to_patient_by_idx(0)
         assert len(ann.annotation_session.lead_states) == n
         assert ann.main_lead_names == names
+
+
+# --- open_file / open_directory --------------------------------------------
+
+def _open_stub(paths):
+    ann = _stub()
+    ann._clear_and_load_patient_by_idx = MagicMock()
+    ann.get_next_unnanotated_patient_file_idx = MagicMock(return_value=0)
+    ann.ecg_data_loader = MagicMock()
+    ann.ecg_data_loader.get_file_count.return_value = len(paths)
+    ann.ecg_data_loader.get_path.side_effect = lambda i: str(paths[i])
+    return ann
+
+
+def test_find_patient_idx(tmp_path):
+    paths = [tmp_path / "a.dcm", tmp_path / "b.dcm", tmp_path / "c.dcm"]
+    ann = _open_stub(paths)
+
+    assert ann._find_patient_idx(tmp_path / "b.dcm") == 1
+    assert ann._find_patient_idx(tmp_path / "missing.dcm") == -1
+
+
+def test_open_directory_without_start_path_uses_first_unannotated(tmp_path, monkeypatch):
+    paths = [tmp_path / "a.dcm", tmp_path / "b.dcm"]
+    ann = _open_stub(paths)
+    monkeypatch.setattr(
+        "ecg_annotator.annotator.DataLoader", lambda d: ann.ecg_data_loader
+    )
+    ann.get_next_unnanotated_patient_file_idx.return_value = 1
+
+    ann.open_directory(tmp_path)
+
+    idx, _ = ann._clear_and_load_patient_by_idx.call_args[0]
+    assert idx == 1
+
+
+def test_open_file_jumps_to_that_file(tmp_path, monkeypatch):
+    paths = [tmp_path / "a.dcm", tmp_path / "b.dcm", tmp_path / "c.dcm"]
+    ann = _open_stub(paths)
+    monkeypatch.setattr(
+        "ecg_annotator.annotator.DataLoader", lambda d: ann.ecg_data_loader
+    )
+
+    ann.open_file(tmp_path / "c.dcm")
+
+    idx, _ = ann._clear_and_load_patient_by_idx.call_args[0]
+    assert idx == 2

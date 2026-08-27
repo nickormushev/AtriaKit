@@ -3,11 +3,12 @@ import sys
 from pathlib import Path
 
 import pyqtgraph as pg
-from PyQt6.QtWidgets import QApplication, QFileDialog
+from PyQt6.QtWidgets import QApplication
 
 from ecg_annotator.annotator import ECGAnnotator
 from ecg_annotator.config import load_config
 from ecg_annotator.logging_config import setup_logging
+from ecg_annotator.navigation import Navigator
 from ecg_annotator.plotter import ECGPlotter
 
 log = logging.getLogger(__name__)
@@ -16,14 +17,9 @@ log = logging.getLogger(__name__)
 def main():
     config = load_config()
 
-    if len(sys.argv) > 1:
-        working_dir = Path(sys.argv[1])
-    else:
-        _app = QApplication.instance() or QApplication(sys.argv)
-        _selected = QFileDialog.getExistingDirectory(None, "Select DICOM directory")
-        if not _selected:
-            sys.exit(0)
-        working_dir = Path(_selected)
+    # No directory on the command line: start empty and let the user pick one
+    # from the File menu (Open File / Open Folder).
+    working_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else None
 
     if len(sys.argv) > 2:
         output_file = Path(sys.argv[2])
@@ -41,7 +37,7 @@ def main():
     )
 
     app = QApplication.instance() or QApplication(sys.argv)
-    win = pg.GraphicsLayoutWidget(show=True, title="ECG Annotator")
+    win = pg.GraphicsLayoutWidget(title="ECG Annotator")
     win.setBackground("w")
     plot = win.addPlot()
     plot.setMenuEnabled(False)
@@ -49,7 +45,8 @@ def main():
 
     annotator = ECGAnnotator(working_dir, output_file, config, plotter)
 
-    plotter.show()
+    navigator = Navigator(annotator)
+    navigator.show()
     sys.exit(app.exec())
 
 
