@@ -7,6 +7,10 @@ An Open-Source Framework for Reproducible P-Wave Phenotyping
 </p>
 
 <p align="center">
+<sub>Nikolay Kormushev, Samuel Ruipérez-Campillo, et al.</sub>
+</p>
+
+<p align="center">
   <a href="https://github.com/nickormushev/AtriaKit/actions/workflows/tests.yml">
     <img src="https://github.com/nickormushev/AtriaKit/actions/workflows/tests.yml/badge.svg" alt="Tests">
   </a>
@@ -273,10 +277,20 @@ The accompanying manuscript has been submitted and is not yet published; a full 
 
 ```bibtex
 @software{atriakit,
-  author  = {Kormushev, Nikolay},
-  title   = {AtriaKit: An Open-Source Framework for Reproducible P-Wave Phenotyping},
-  year    = {2026},
-  url     = {https://github.com/nickormushev/AtriaKit}
+  author = {
+    Kormushev, Nikolay and
+    Ruipérez-Campillo, Samuel and
+    Schlageter, Vincent and
+    Luca, Adrian and
+    Badertscher, Patrick and
+    Kühne, Michael and
+    Sticherling, Christian and
+    Knecht, Sven and
+    Vogt, Julia E.
+  },
+  title = {AtriaKit: An Open-Source Framework for Reproducible P-Wave Phenotyping},
+  year = {2026},
+  url = {https://github.com/nickormushev/AtriaKit}
 }
 ```
 
