@@ -106,8 +106,9 @@ def _apply_boundary_mode(
 ) -> pd.DataFrame:
     """Copy multilead values into onset/offset when cross_lead mode is active.
 
-    Per-lead is the default — onset/offset already hold per-lead values after
-    :func:`_compute_multilead`, so no action is needed in that case.
+    Cross-lead is the default (``AnnotationsLoaderConfig.boundary_mode``). In
+    per_lead mode onset/offset already hold per-lead values after
+    :func:`_compute_multilead`, so no action is needed.
     """
     if (
         config.boundary_mode == "cross_lead"
