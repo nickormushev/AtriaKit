@@ -48,7 +48,7 @@ class FeatureComputationConfig:
         3.0  # a fragment's amplitude change must exceed this many noise SDs to count as a valid fragment boundary
     )
     min_fragment_length_ms: float = (
-        0.0  # fragments shorter than this (ms) are discarded
+        10.0  # fragments no longer than this (ms) are discarded, which keeps single-sample noise steps from counting; at 500 Hz this drops runs of 5 samples or fewer
     )
     normalize_by_duration: bool = (
         False  # normalise fragment metrics per 100ms of P-wave duration; True matches the original paper

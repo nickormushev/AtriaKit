@@ -160,7 +160,7 @@ def ptf_auto(
 
 
 def area(segment, fs):
-    """Compute the P-wave area as the integral of the absolute signal.
+    """Compute the P-wave area with the rectangle rule: ``sum(|x_i|) / fs``.
 
     Args:
         segment: 1-D signal array of the P-wave segment in mV.

@@ -230,7 +230,7 @@ class FeatureCalculators:
         if supervised:
 
             def ptf_wrapper(segment, row):
-                return ptf(segment, fs)
+                return ptf(-segment if row.lead == "aVR" else segment, fs)
 
             return self._compute_segment_metric(
                 annotations,
@@ -282,7 +282,10 @@ class FeatureCalculators:
         return ratios
 
     def area(self, annotations: Annotations, ecg_data: ECGData) -> list:
-        """Compute the absolute integral of each annotated P-wave segment."""
+        """Compute the area of each annotated P-wave segment (rectangle rule).
+
+        ``area = sum(|x_i|) / fs`` over every sample from onset to offset, both included.
+        """
         fs = ecg_data.get_sampling_frequency()
         return self._compute_segment_metric(
             annotations,
@@ -318,22 +321,46 @@ class FeatureCalculators:
             annotations, ecg_data, amplitude_features.peak_to_peak_amplitude
         )
 
+    @staticmethod
+    def _per_lead_durations(annotations: Annotations, fs: int) -> np.ndarray:
+        """Duration in seconds of each lead's own P wave, ignoring any cross-lead widening."""
+        has_original_bounds = (
+            AnnotationSchema.ONSET_ORIGINAL in annotations.columns
+            and AnnotationSchema.OFFSET_ORIGINAL in annotations.columns
+        )
+        onset_column = (
+            AnnotationSchema.ONSET_ORIGINAL
+            if has_original_bounds
+            else AnnotationSchema.ONSET
+        )
+        offset_column = (
+            AnnotationSchema.OFFSET_ORIGINAL
+            if has_original_bounds
+            else AnnotationSchema.OFFSET
+        )
+        return np.asarray((annotations[offset_column] - annotations[onset_column]) / fs)
+
     @_no_baseline
     def dispersion(
-        self, annotations: Annotations, fs: int, per_beat: bool = False
+        self, annotations: Annotations, fs: int, per_beat: bool = True
     ) -> float | np.ndarray:
         """Compute the dispersion of P-wave durations (max - min) in seconds.
 
+        Durations are each lead's own, taken from the ``onset_original`` /
+        ``offset_original`` columns when present, so the result is the real
+        lead-to-lead spread even when the annotations use ``cross_lead``
+        boundaries (which give every lead of a beat the same window).
+
         Args:
-            per_beat: If True, compute max - min across leads for each beat
-                (``p_wave_id``) separately and return one value per beat,
-                ordered by ``p_wave_id``. If False (default), compute max - min
-                over all annotations and return a single float.
+            per_beat: If True (default), compute max - min across leads for each
+                beat (``p_wave_id``) separately and return one value per beat,
+                ordered by ``p_wave_id``. If False, compute max - min over all
+                annotations and return a single float.
         """
         if annotations.empty:
             return np.array([]) if per_beat else np.nan
 
-        durations = self.duration(annotations, fs)
+        durations = self._per_lead_durations(annotations, fs)
         if per_beat:
             return (
                 pd.Series(durations, index=annotations.index)
@@ -494,7 +521,7 @@ class FeatureCalculators:
         self,
         annotations: Annotations,
         ecg_data: ECGData,
-        min_fragment_length_ms: float = 0,
+        min_fragment_length_ms: float = 10.0,
         noise_sd_multiplier: float = 3.0,
         fragment_noise_multiplier: float = 3.0,
     ) -> list:
@@ -509,7 +536,7 @@ class FeatureCalculators:
         Args:
             annotations: P-wave annotations.
             ecg_data: ECG signal source.
-            min_fragment_length_ms: Minimum fragment length in ms to consider (default 0).
+            min_fragment_length_ms: Minimum fragment length in ms to consider (default 10).
             noise_sd_multiplier: Multiplier for filtering out pre-onset noise estimation
                 windows that are too large relative to P-wave amplitude (default 3.0).
             fragment_noise_multiplier: A fragment's amplitude change must exceed this
@@ -537,7 +564,7 @@ class FeatureCalculators:
         annotations: Annotations,
         ecg_data: ECGData,
         vcg_sum: np.ndarray,
-        min_fragment_length_ms: float = 0,
+        min_fragment_length_ms: float = 10.0,
         noise_sd_multiplier: float = 3.0,
         fragment_noise_multiplier: float = 3.0,
     ) -> list:
@@ -780,7 +807,7 @@ class FeatureCalculators:
         annotations: Annotations,
         ecg_data: ECGData,
         normalize_by_duration: bool = False,
-        min_fragment_length_ms: float = 0.0,
+        min_fragment_length_ms: float = 10.0,
         noise_sd_multiplier: float = 3.0,
         fragment_noise_multiplier: float = 3.0,
     ) -> tuple[list, list, list]:
@@ -796,7 +823,7 @@ class FeatureCalculators:
             normalize_by_duration: If True, normalize each metric per 100 ms of
                 P-wave duration, as in the original fragmentation paper (default False).
             min_fragment_length_ms: Fragments shorter than this duration in ms are
-                discarded (default 0).
+                discarded (default 10).
             noise_sd_multiplier: Multiplier for filtering out pre-onset noise estimation
                 windows that are too large relative to P-wave amplitude (default 3.0).
             fragment_noise_multiplier: A fragment's amplitude change must exceed this
@@ -913,7 +940,7 @@ class FeatureCalculators:
 
         per_lead_noise_estimates = []
         sampling_rate = ecg_data.get_sampling_frequency()
-        offset_window = window_in_ms * int(sampling_rate / 1000)
+        offset_window = int(window_in_ms * sampling_rate / 1000)
         leads_in_annotations = list(
             pd.unique(annotations_with_p_wave_max[AnnotationSchema.LEAD])
         )
@@ -1041,7 +1068,7 @@ class FeatureCalculators:
         ecg_data: ECGData,
         mode: Literal["sum", "x", "y", "z"] = "sum",
         normalize_by_duration: bool = False,
-        min_fragment_length_ms: float = 0.0,
+        min_fragment_length_ms: float = 10.0,
         noise_sd_multiplier: float = 3.0,
         fragment_noise_multiplier: float = 3.0,
     ) -> tuple[list, list, list]:
@@ -1058,7 +1085,7 @@ class FeatureCalculators:
             normalize_by_duration: If True, normalize each metric per 100 ms of
                 P-wave duration, as in the original fragmentation paper (default False).
             min_fragment_length_ms: Fragments shorter than this duration in ms are
-                discarded (default 0).
+                discarded (default 10).
             noise_sd_multiplier: Multiplier for filtering out pre-onset noise estimation
                 windows that are too large relative to P-wave amplitude (default 3.0).
             fragment_noise_multiplier: A fragment's amplitude change must exceed this
@@ -1128,14 +1155,17 @@ class FeatureCalculators:
         """Return the amplitude at the offset of each annotated segment."""
         return self._compute_segment_metric(annotations, ecg_data, lambda x, _: x[-1])
 
-    def get_onset_offset_angle(
+    def get_onset_offset_slope(
         self, annotations: Annotations, ecg_data: ECGData
     ) -> list:
-        """Compute the angle between the onset and offset of each annotated segment."""
-        fs = ecg_data.get_sampling_frequency()
-        scale = 1000 / fs
+        """Compute the average onset-to-offset slope of each annotated segment, in mV/ms.
+
+        ``slope = offset_amplitude / (n_samples * ms_per_sample)``. The onset is assumed
+        to sit at baseline, so the offset amplitude is the full onset-to-offset change.
+        """
+        ms_per_sample = 1000 / ecg_data.get_sampling_frequency()
         return self._compute_segment_metric(
-            annotations, ecg_data, lambda x, _: np.arctan(x[-1] / (len(x) * scale))
+            annotations, ecg_data, lambda x, _: x[-1] / (len(x) * ms_per_sample)
         )
 
     def get_shannon_entropy(
@@ -1260,7 +1290,7 @@ class FeatureCalculators:
             "atrial_rate": self.atrial_rate(annotations, ecg_data),
             "heart_rate": self.heart_rate(annotations, ecg_data),
             "offset_amplitude": self.get_offset_amplitude(annotations, ecg_data),
-            "onset_offset_angle": self.get_onset_offset_angle(annotations, ecg_data),
+            "onset_offset_slope": self.get_onset_offset_slope(annotations, ecg_data),
             "complexity": self.complexity(
                 annotations,
                 ecg_data,

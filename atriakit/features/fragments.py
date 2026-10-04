@@ -68,9 +68,11 @@ def fragments_finder(
 ) -> list:
     """Detect fragments in a P-wave segment.
 
-    A fragment is a monotonic run between two consecutive extrema whose
-    amplitude change (end − start) exceeds ``noise_multiplier × lead_noise``
-    and whose duration exceeds ``min_fragment_length_ms``.
+    A fragment is a monotonic run between two consecutive boundaries, where the
+    boundaries are the segment's first sample, its local extrema, and its last
+    sample. A fragment is kept if its amplitude change (end - start) reaches
+    ``noise_multiplier × lead_noise`` and its duration exceeds
+    ``min_fragment_length_ms``. A segment without extrema is a single fragment.
 
     Args:
         segment: 1-D signal array of the P-wave segment.
@@ -91,27 +93,16 @@ def fragments_finder(
 
     derivative = np.diff(segment)
     extrema = np.where(np.diff(np.sign(derivative)) != 0)[0] + 1
+    boundaries = [0, *extrema, len(segment) - 1]
 
     min_samples = int(min_fragment_length_ms * fs / 1000)
 
-    if len(extrema) == 0:
-        return []
-
     fragments = []
-
-    def try_add_fragment(start_idx, end_idx):
-        fragment = segment[start_idx:end_idx]
-        if (end_idx - start_idx) > min_samples and abs(
-            fragment[-1] - fragment[0]
-        ) >= noise_multiplier * lead_noise:
-            fragments.append((start_idx, end_idx, fragment[0], fragment[-1]))
-
-    try_add_fragment(0, extrema[0])
-
-    for i in range(len(extrema) - 1):
-        try_add_fragment(extrema[i], extrema[i + 1])
-
-    if extrema[-1] < len(segment) - 1:
-        try_add_fragment(extrema[-1], len(segment))
+    for start_idx, end_idx in zip(boundaries[:-1], boundaries[1:]):
+        start_amp, end_amp = segment[start_idx], segment[end_idx]
+        long_enough = (end_idx - start_idx) > min_samples
+        large_enough = abs(end_amp - start_amp) >= noise_multiplier * lead_noise
+        if long_enough and large_enough:
+            fragments.append((start_idx, end_idx, start_amp, end_amp))
 
     return fragments

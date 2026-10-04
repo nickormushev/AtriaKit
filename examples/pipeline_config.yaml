@@ -47,7 +47,7 @@ pipeline:
     # Dispersion
     dispersion_per_beat: true  # false = one max - min over all beats of the recording instead of per beat
     # Fragmentation
-    min_fragment_length_ms: 0.0
+    min_fragment_length_ms: 10.0
     normalize_by_duration: false
 
 run:

@@ -56,7 +56,7 @@ def test_pipeline_end_to_end_generates_all_feature_columns(demo_dir, demo_annota
         "duration", "area", "area_to_duration_ratio",
         "max_absolute_amplitude", "max_amplitude", "min_amplitude", "ptp_amplitude",
         "ptf", "dispersion", "atrial_rate", "heart_rate",
-        "offset_amplitude", "onset_offset_angle",
+        "offset_amplitude", "onset_offset_slope",
         "complexity", "shannon_entropy", "sample_entropy",
         "fragment_count", "fragment_width", "fragment_height",
         "axis",

@@ -15,6 +15,7 @@ from atriakit.feature_calculator import FeatureCalculators
 from atriakit.features.area import _find_inflection
 from atriakit.features.area import ptf as ptf_fn
 from atriakit.features.area import ptf_auto as ptf_auto_fn
+from atriakit.features.fragments import fragments_finder
 from atriakit.features.vcg import vcg_axis_angles
 from atriakit.io import AnnotationsLoader
 from atriakit.models.annotation_schema import AnnotationSchema
@@ -503,6 +504,27 @@ def test_area_to_duration_ratio_zero_duration_raises():
         fc.area_to_duration_ratio(annotations, ecg_data)
 
 
+def test_map_axis_by_p_wave_id_assigns_each_beats_value_to_its_own_rows():
+    """_map_axis_by_p_wave_id zips axis values positionally with sorted(unique(p_wave_id));
+    this pins that beat 2's rows get axis_values[1], not beat 1's or an average."""
+    fc = make_feature_calculator()
+    annotations = Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.LEAD: ["I", "II", "I", "II"],
+                AnnotationSchema.ONSET: [0, 0, 0, 0],
+                AnnotationSchema.OFFSET: [5, 5, 5, 5],
+                AnnotationSchema.P_WAVE_ID: [1, 1, 2, 2],
+                AnnotationSchema.FILE_PATH: ["rec1"] * 4,
+            }
+        )
+    )
+
+    mapped = fc._map_axis_by_p_wave_id(annotations, axis_values=[10.0, 20.0])
+
+    np.testing.assert_allclose(mapped.to_numpy(), [10.0, 10.0, 20.0, 20.0])
+
+
 def test_axis_method(feature_calculator_axis, sample_annotations_axis):
     feature_calculator, ecg_data = feature_calculator_axis
 
@@ -620,6 +642,50 @@ def test_estimate_noise_vcg_annotations_uses_vcg_signal():
 
     assert len(noise_estimates) == 1
     assert noise_estimates[0] > 0
+
+
+def _noisy_recording(sampling_frequency, noise_sd, n_beats=48):
+    """Seeded white noise with a 0.2 mV, 100 ms half-sine P wave every second."""
+    rng = np.random.default_rng(0)
+    signal = rng.normal(0, noise_sd, (n_beats + 1) * sampling_frequency)
+
+    wave_samples = int(0.1 * sampling_frequency)
+    wave = 0.2 * np.sin(np.pi * np.arange(wave_samples + 1) / wave_samples)
+    onsets = [(beat + 1) * sampling_frequency for beat in range(n_beats)]
+    for onset in onsets:
+        signal[onset : onset + len(wave)] += wave
+
+    annotations = Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.LEAD: ["I"] * n_beats,
+                AnnotationSchema.ONSET: onsets,
+                AnnotationSchema.OFFSET: [onset + wave_samples for onset in onsets],
+                AnnotationSchema.P_WAVE_ID: list(range(n_beats)),
+                AnnotationSchema.FILE_PATH: ["rec1"] * n_beats,
+            }
+        )
+    )
+    return signal, annotations
+
+
+@pytest.mark.parametrize("sampling_frequency", [250, 500, 977, 1000, 2000])
+def test_estimate_noise_at_different_sampling_rates(sampling_frequency):
+    # The 50 ms pre-onset window was once window_in_ms * int(fs / 1000), which is
+    # 0 samples below 1000 Hz and made every noise estimate 0.
+    noise_sd = 0.01
+    signal, annotations = _noisy_recording(sampling_frequency, noise_sd)
+    feature_calculator = make_feature_calculator()
+    ecg_data = make_mock_ecg_data({"I": signal}, sampling_frequency=sampling_frequency)
+    ecg_data.get_leads.return_value = ["I"]
+
+    noise_estimates = feature_calculator.estimate_noise(annotations, ecg_data)
+
+    # The estimate is a standard deviation over a 50 ms window: only 12 samples at 250 Hz,
+    # where it runs ~7% low on average. Over 48 beats no seed was more than 14% off, so
+    # 15% holds for any seed; the bug gave an estimate of 0 (-100%).
+    assert len(noise_estimates) == 1
+    np.testing.assert_allclose(noise_estimates[0], noise_sd, rtol=0.15)
 
 
 def test_fragments_method(feature_calculator_fragments, sample_annotations_fragments):
@@ -747,6 +813,28 @@ def test_atrial_rate():
     assert isinstance(heart_rate, int)
     assert heart_rate == 300
 
+
+
+def test_atrial_rate_is_the_median_over_unequal_beat_spacing():
+    feature_calculator = FeatureCalculators.__new__(FeatureCalculators)
+    ecg_data = MagicMock()
+    ecg_data.get_sampling_frequency.return_value = 500
+
+    # PP intervals of 420, 380 and 410 samples: 71.4, 78.9 and 73.2 bpm, median 73.2
+    onsets = [0, 420, 800, 1210]
+    annotations = Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.LEAD: ["I", "II"] * 4,
+                AnnotationSchema.ONSET: [o + d for o in onsets for d in (0, 2)],
+                AnnotationSchema.OFFSET: [o + d + 50 for o in onsets for d in (0, 2)],
+                AnnotationSchema.P_WAVE_ID: [1, 1, 2, 2, 3, 3, 4, 4],
+                AnnotationSchema.FILE_PATH: ["rec1"] * 8,
+            }
+        )
+    )
+
+    assert feature_calculator.atrial_rate(annotations, ecg_data) == 73
 
 def test_heart_rate(feature_calculator_heart_rate, hr_annotations):
     feature_calculator, ecg_data = feature_calculator_heart_rate
@@ -957,7 +1045,7 @@ def test_vcg_axis_angles_multi_timestep_sums_correctly():
     assert azim == pytest.approx(0.0)
 
 
-def test_get_onset_offset_angle_onset_baseline_and_value():
+def test_get_onset_offset_slope_onset_baseline_and_value():
     feature_calculator = make_feature_calculator(baseline_correction_type="onset")
     ecg_data = make_mock_ecg_data({"I": np.array([5.0, 7.0])}, sampling_frequency=1000)
 
@@ -974,14 +1062,14 @@ def test_get_onset_offset_angle_onset_baseline_and_value():
         )
     )
 
-    angles = feature_calculator.get_onset_offset_angle(annotations, ecg_data)
+    slopes = feature_calculator.get_onset_offset_slope(annotations, ecg_data)
 
-    assert len(angles) == 1
+    assert len(slopes) == 1
     np.testing.assert_allclose(
-        angles[0],
-        np.pi / 4,
+        slopes[0],
+        1.0,
         atol=1e-6,
-        err_msg="Onset-offset angle should be 45 degrees (pi/4) after onset correction",
+        err_msg="After onset correction the segment rises 2 mV over 2 samples of 1 ms: 1 mV/ms",
     )
 
 
@@ -1507,6 +1595,26 @@ def _dispersion_ann():
 
 
 class TestDispersion:
+    def test_uses_original_per_lead_bounds_under_cross_lead_widening(self):
+        """cross_lead gives both leads of a beat one shared window; dispersion must look through it."""
+        fc = make_feature_calculator()
+        shared_window = {AnnotationSchema.ONSET: [0, 0], AnnotationSchema.OFFSET: [70, 70]}
+        ann = Annotations(
+            pd.DataFrame(
+                {
+                    AnnotationSchema.FILE_PATH: "rec1",
+                    AnnotationSchema.P_WAVE_ID: [1, 1],
+                    AnnotationSchema.LEAD: ["I", "II"],
+                    **shared_window,
+                    AnnotationSchema.ONSET_ORIGINAL: [0, 0],
+                    AnnotationSchema.OFFSET_ORIGINAL: [50, 70],
+                }
+            )
+        )
+
+        np.testing.assert_allclose(fc.dispersion(ann, fs=100, per_beat=True), [0.2])
+        np.testing.assert_allclose(fc.dispersion(ann, fs=100), 0.2)
+
     def test_per_beat_single_lead_beat_is_zero(self):
         fc = make_feature_calculator()
         ann = Annotations(_dispersion_ann()._df.iloc[[0, 2, 3]])
@@ -1516,8 +1624,8 @@ class TestDispersion:
     def test_empty_annotations(self):
         fc = make_feature_calculator()
         empty = Annotations(pd.DataFrame())
-        assert np.isnan(fc.dispersion(empty, fs=100))
-        assert len(fc.dispersion(empty, fs=100, per_beat=True)) == 0
+        assert np.isnan(fc.dispersion(empty, fs=100, per_beat=False))
+        assert len(fc.dispersion(empty, fs=100)) == 0
 
 
 class TestDispersionFeatureTable:
@@ -1538,3 +1646,54 @@ class TestDispersionFeatureTable:
         config = FeatureComputationConfig(dispersion_per_beat=flag)
         FeatureCalculators._build_group_features(calc, _ann(), MagicMock(), config)
         assert calc._dispersion_per_row.call_args.args[2] is flag
+
+
+# ── fragments_finder ─────────────────────────────────────────────────
+
+
+class TestFragmentsFinder:
+    """Fragments are monotonic runs between segment ends and local extrema (end inclusive)."""
+
+    FS = 1000  # 1 sample = 1 ms
+
+    def test_fragment_reaches_its_closing_extremum(self):
+        segment = np.array([0.0, 1.0, 2.0, 1.0, 0.0])
+
+        fragments = fragments_finder(segment, lead_noise=0, fs=self.FS, min_fragment_length_ms=0)
+
+        assert fragments == [(0, 2, 0.0, 2.0), (2, 4, 2.0, 0.0)]
+
+    def test_last_fragment_ends_on_the_last_sample(self):
+        segment = np.array([0.0, 2.0, 1.0, 1.5, 0.5, 0.2])
+
+        fragments = fragments_finder(segment, lead_noise=0, fs=self.FS, min_fragment_length_ms=0)
+
+        assert fragments[-1][1] == len(segment) - 1
+        assert fragments[-1][3] == segment[-1]
+
+    def test_monotonic_segment_is_one_fragment(self):
+        segment = np.linspace(0.0, 1.0, 10)
+
+        fragments = fragments_finder(segment, lead_noise=0, fs=self.FS, min_fragment_length_ms=0)
+
+        assert fragments == [(0, 9, 0.0, 1.0)]
+
+    def test_runs_below_the_noise_threshold_are_dropped(self):
+        segment = np.array([0.0, 1.0, 0.9, 2.0, 0.0])  # the 1.0 -> 0.9 dip is only 0.1
+
+        fragments = fragments_finder(
+            segment, lead_noise=0.1, fs=self.FS, min_fragment_length_ms=0, noise_multiplier=2
+        )
+
+        assert [(start, end) for start, end, _, _ in fragments] == [(0, 1), (2, 3), (3, 4)]
+
+    def test_runs_shorter_than_the_minimum_length_are_dropped(self):
+        # boundaries 0, 1 (peak), 2 (trough), 5 (peak), 6: run lengths are 1, 1, 3, 1 samples
+        segment = np.array([0.0, 1.0, 0.0, 0.5, 1.0, 1.5, 0.0])
+
+        fragments = fragments_finder(segment, lead_noise=0, fs=self.FS, min_fragment_length_ms=1)
+
+        assert fragments == [(2, 5, 0.0, 1.5)]
+
+    def test_empty_segment_has_no_fragments(self):
+        assert fragments_finder(np.array([]), lead_noise=0, fs=self.FS) == []
