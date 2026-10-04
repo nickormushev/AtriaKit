@@ -38,6 +38,11 @@ class FeatureComputationConfig:
         False  # unsupervised PTF only: True starts the terminal segment at the positive-to-negative zero-crossing (conventional PTF); False uses the negative-derivative inflection point
     )
 
+    # Dispersion
+    dispersion_per_beat: bool = (
+        True  # True computes max - min of P-wave duration across leads within each beat and assigns it to that beat's rows; False uses one recording-wide max - min over all beats
+    )
+
     # Fragmentation
     fragment_noise_multiplier: float = (
         3.0  # a fragment's amplitude change must exceed this many noise SDs to count as a valid fragment boundary

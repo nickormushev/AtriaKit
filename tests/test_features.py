@@ -1486,3 +1486,55 @@ class TestPtfUnsupervisedFeatureCalculator:
         result = fc.ptf(ann, ecg_data)
         assert len(result) == 2
         np.testing.assert_allclose(result[0], result[1])
+
+
+# ── dispersion ───────────────────────────────────────────────────────
+
+
+def _dispersion_ann():
+    """Two beats, two leads each: durations (fs=100) beat 1 = 0.5/0.7 s, beat 2 = 0.6/0.5 s."""
+    return Annotations(
+        pd.DataFrame(
+            {
+                AnnotationSchema.FILE_PATH: "rec1",
+                AnnotationSchema.P_WAVE_ID: [1, 1, 2, 2],
+                AnnotationSchema.LEAD: ["I", "II", "I", "II"],
+                AnnotationSchema.ONSET: [0, 0, 100, 100],
+                AnnotationSchema.OFFSET: [50, 70, 160, 150],
+            }
+        )
+    )
+
+
+class TestDispersion:
+    def test_per_beat_single_lead_beat_is_zero(self):
+        fc = make_feature_calculator()
+        ann = Annotations(_dispersion_ann()._df.iloc[[0, 2, 3]])
+        result = fc.dispersion(ann, fs=100, per_beat=True)
+        np.testing.assert_allclose(result, [0.0, 0.1])
+
+    def test_empty_annotations(self):
+        fc = make_feature_calculator()
+        empty = Annotations(pd.DataFrame())
+        assert np.isnan(fc.dispersion(empty, fs=100))
+        assert len(fc.dispersion(empty, fs=100, per_beat=True)) == 0
+
+
+class TestDispersionFeatureTable:
+    def test_per_row_maps_each_beat_value_to_its_rows(self):
+        fc = make_feature_calculator()
+        result = fc._dispersion_per_row(_dispersion_ann(), 100, per_beat=True)
+        np.testing.assert_allclose(result.to_numpy(), [0.2, 0.2, 0.1, 0.1])
+
+    def test_per_row_default_stays_scalar(self):
+        fc = make_feature_calculator()
+        result = fc._dispersion_per_row(_dispersion_ann(), 100, per_beat=False)
+        assert result == pytest.approx(0.2)
+
+    @pytest.mark.parametrize("flag", [False, True])
+    def test_config_flag_reaches_dispersion_column(self, flag):
+        calc = MagicMock()
+        calc.fragment_metrics.return_value = ([], [], [])
+        config = FeatureComputationConfig(dispersion_per_beat=flag)
+        FeatureCalculators._build_group_features(calc, _ann(), MagicMock(), config)
+        assert calc._dispersion_per_row.call_args.args[2] is flag

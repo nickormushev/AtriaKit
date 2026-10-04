@@ -319,12 +319,29 @@ class FeatureCalculators:
         )
 
     @_no_baseline
-    def dispersion(self, annotations: Annotations, fs: int) -> float:
-        """Compute the dispersion of P-wave durations (max - min) in seconds."""
+    def dispersion(
+        self, annotations: Annotations, fs: int, per_beat: bool = False
+    ) -> float | np.ndarray:
+        """Compute the dispersion of P-wave durations (max - min) in seconds.
+
+        Args:
+            per_beat: If True, compute max - min across leads for each beat
+                (``p_wave_id``) separately and return one value per beat,
+                ordered by ``p_wave_id``. If False (default), compute max - min
+                over all annotations and return a single float.
+        """
         if annotations.empty:
-            return np.nan
+            return np.array([]) if per_beat else np.nan
 
         durations = self.duration(annotations, fs)
+        if per_beat:
+            return (
+                pd.Series(durations, index=annotations.index)
+                .groupby(annotations[AnnotationSchema.P_WAVE_ID])
+                .agg(lambda d: d.max() - d.min())
+                .to_numpy()
+            )
+
         return np.max(durations) - np.min(durations)
 
     def axis(self, annotations: Annotations, ecg_data: ECGData) -> list:
@@ -1192,6 +1209,15 @@ class FeatureCalculators:
 
         return self._compute_segment_metric(annotations, ecg_data, _wrapper)
 
+    def _dispersion_per_row(
+        self, annotations: Annotations, fs: int, per_beat: bool
+    ) -> float | pd.Series:
+        """Dispersion as a feature-table column: a scalar, or each beat's value on its rows."""
+        dispersion = self.dispersion(annotations, fs, per_beat=per_beat)
+        if not per_beat:
+            return dispersion
+        return self._map_axis_by_p_wave_id(annotations, dispersion)
+
     def _build_group_features(
         self,
         annotations: Annotations,
@@ -1228,7 +1254,9 @@ class FeatureCalculators:
                 ecg_data,
                 zero_crossing=feature_computation_config.ptf_zero_crossing,
             ),
-            "dispersion": self.dispersion(annotations, fs),
+            "dispersion": self._dispersion_per_row(
+                annotations, fs, feature_computation_config.dispersion_per_beat
+            ),
             "atrial_rate": self.atrial_rate(annotations, ecg_data),
             "heart_rate": self.heart_rate(annotations, ecg_data),
             "offset_amplitude": self.get_offset_amplitude(annotations, ecg_data),

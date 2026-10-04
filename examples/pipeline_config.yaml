@@ -44,6 +44,8 @@ pipeline:
     morphology_noise_sd_multiplier: 3.0
     # PTF
     ptf_zero_crossing: false  # true = conventional zero-crossing PTF (unsupervised only)
+    # Dispersion
+    dispersion_per_beat: true  # false = one max - min over all beats of the recording instead of per beat
     # Fragmentation
     min_fragment_length_ms: 0.0
     normalize_by_duration: false
