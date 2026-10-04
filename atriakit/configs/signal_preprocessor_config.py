@@ -28,7 +28,7 @@ class SignalPreprocessorConfig:
         0  # Dimensionless smoothing strength for the SciPy spline fit; 0 keeps exact interpolation, larger values follow only slower baseline drift.
     )
     normalization_type: Literal["none", "zscore"] = (
-        "none"  # Dataset-level normalization to apply after filtering; use `"none"` to disable it.
+        "none"  # Dataset-level normalization to apply after filtering; use `"none"` to disable it. NOT recommended for feature extraction: it removes the actual voltages (features are no longer in mV) and scales each lead differently, which distorts features that depend on amplitude ratios between leads (e.g. axis). Kept for ML use and future extensions.
     )
     mean: np.ndarray | None = (
         None  # Per-lead mean used for zscore normalization; Either provide or compute with ECGDataset. Required if `normalization_type` is `"zscore"`.

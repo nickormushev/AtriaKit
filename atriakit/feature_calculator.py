@@ -1309,10 +1309,19 @@ class FeatureCalculators:
         ecg_data: ECGData,
         feature_computation_config: FeatureComputationConfig,
     ) -> pd.DataFrame:
-        missing = set(VCG_LEADS) - set(ecg_data.get_lead_to_index())
-        if missing:
+        skip_reason = None
+        if self.signal_preprocessor.uses_normalization():
+            skip_reason = (
+                "normalization distorts amplitude ratios between leads "
+                "(normalization_type != 'none')"
+            )
+        else:
+            missing = set(VCG_LEADS) - set(ecg_data.get_lead_to_index())
+            if missing:
+                skip_reason = f"missing leads {sorted(missing)}"
+        if skip_reason:
             warnings.warn(
-                f"Skipping VCG features: missing leads {sorted(missing)} in "
+                f"Skipping VCG features: {skip_reason} in "
                 f"{self._file_label(annotations)}"
             )
             p_wave_ids = annotations.vcg_annotations()[
@@ -1425,7 +1434,13 @@ class FeatureCalculators:
 
         # --- Axis feature ---
         features_df["axis"] = np.nan
-        if set(AXIS_LEADS).issubset(ecg_data.get_lead_to_index()):
+        if self.signal_preprocessor.uses_normalization():
+            warnings.warn(
+                f"Skipping axis: normalization distorts amplitude ratios between "
+                f"leads (normalization_type != 'none') in "
+                f"{self._file_label(working_annotations)}"
+            )
+        elif set(AXIS_LEADS).issubset(ecg_data.get_lead_to_index()):
             try:
                 axis = self.axis(working_annotations, ecg_data)
                 features_df["axis"] = self._map_axis_by_p_wave_id(

@@ -7,6 +7,9 @@ While the version is 0.x, minor releases may contain breaking changes.
 ## [Unreleased]
 
 ### Changed
+- `compute_all` now skips `axis` and the VCG features (NaN plus a warning) when
+  the signal preprocessor uses normalization, since per-lead scaling distorts
+  the amplitude ratios they depend on.
 - **Feature values changed:** the `dispersion` column now defaults to per-beat
   (max - min across leads within each beat, assigned to that beat's rows)
   instead of one recording-wide max - min. Set `dispersion_per_beat: false` to

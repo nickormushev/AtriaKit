@@ -19,6 +19,8 @@ from atriakit.feature_calculator import FeatureCalculators
 from atriakit.io import ECGLoader
 from atriakit.models.annotation_schema import AnnotationSchema
 from atriakit.models.ecg_data import ECGData
+from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
+from atriakit.preprocessing.signals import SignalPreprocessor
 
 # ---------------------------------------------------------------------------
 # Shared dataset (generated once per module, cleaned up in finally)
@@ -207,3 +209,55 @@ def test_compute_all_skips_vcg_and_axis_when_leads_missing():
     # Non-VCG features should have computed values
     assert not result["area"].isna().all()
     assert not result["max_amplitude"].isna().all()
+
+
+# ---------------------------------------------------------------------------
+# compute_all with normalization enabled: VCG and axis are skipped with NaN
+# ---------------------------------------------------------------------------
+
+
+def test_compute_all_skips_vcg_and_axis_when_normalization_enabled():
+    """With all leads present, a normalizing signal preprocessor still makes
+    compute_all return NaN VCG/axis columns (amplitude ratios are distorted),
+    warn, and compute the other features."""
+    ecg_data = ECGData(
+        ecg=simulate_12lead(heart_rate=60, seed=7),
+        fs=500,
+        lead_to_index={name: i for i, name in enumerate(LEADS)},
+    )
+    ann = AnnotationsLoader().from_dataframe(
+        pd.DataFrame(
+            [
+                {
+                    AnnotationSchema.LEAD: lead,
+                    AnnotationSchema.ONSET: 80,
+                    AnnotationSchema.OFFSET: 110,
+                    AnnotationSchema.P_WAVE_ID: 1,
+                    AnnotationSchema.FILE_PATH: "f",
+                }
+                for lead in LEADS
+            ]
+        )
+    )
+    calc_kwargs = dict(
+        signal_preprocessor=SignalPreprocessor(
+            SignalPreprocessorConfig(
+                highcut=120,
+                normalization_type="zscore",
+                mean=np.zeros(len(LEADS)),
+                std=np.ones(len(LEADS)),
+            )
+        )
+    )
+
+    with pytest.warns(UserWarning, match="normalization"):
+        result = FeatureCalculators(**calc_kwargs).compute_all(ann, ecg_data)
+
+    for col in VCG_FEATURE_COLUMNS + ["axis"]:
+        assert result[col].isna().all(), f"Expected column '{col}' to be all-NaN"
+    assert not result["area"].isna().all()
+
+    # Control: without normalization the same data yields axis and VCG values.
+    unnormalized = FeatureCalculators().compute_all(ann, ecg_data)
+    assert not unnormalized["axis"].isna().all()
+    assert not unnormalized["vcg_area"].isna().all()
