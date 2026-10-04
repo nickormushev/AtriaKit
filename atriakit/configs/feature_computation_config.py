@@ -33,6 +33,11 @@ class FeatureComputationConfig:
         3.0  # same as noise_sd_multiplier but applied only inside the morphology classifier
     )
 
+    # PTF
+    ptf_zero_crossing: bool = (
+        False  # unsupervised PTF only: True starts the terminal segment at the positive-to-negative zero-crossing (conventional PTF); False uses the negative-derivative inflection point
+    )
+
     # Fragmentation
     fragment_noise_multiplier: float = (
         3.0  # a fragment's amplitude change must exceed this many noise SDs to count as a valid fragment boundary

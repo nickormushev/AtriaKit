@@ -42,6 +42,8 @@ pipeline:
     noise_sd_multiplier: 3.0
     morphology_min_phase_fraction: 0.1
     morphology_noise_sd_multiplier: 3.0
+    # PTF
+    ptf_zero_crossing: false  # true = conventional zero-crossing PTF (unsupervised only)
     # Fragmentation
     min_fragment_length_ms: 0.0
     normalize_by_duration: false

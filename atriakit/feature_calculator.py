@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 
 import atriakit.features.amplitude as amplitude_features
-from atriakit.models.annotations import Annotations
 from atriakit.configs.feature_computation_config import FeatureComputationConfig
 from atriakit.configs.segment_config import SegmentConfig
 from atriakit.configs.signal_preprocessor_config import (
@@ -33,6 +32,7 @@ from atriakit.features.vcg import (
     vcg_eigenfeatures_calculator,
 )
 from atriakit.models.annotation_schema import AnnotationSchema
+from atriakit.models.annotations import Annotations
 from atriakit.models.ecg_data import ECGData
 from atriakit.preprocessing.signals import SignalPreprocessor
 from atriakit.processing.segment_processor import SegmentProcessor
@@ -187,19 +187,35 @@ class FeatureCalculators:
         ) / fs
         return np.array(durations)
 
-    def ptf(self, annotations: Annotations, ecg_data: ECGData) -> list:
+    def ptf(
+        self,
+        annotations: Annotations,
+        ecg_data: ECGData,
+        zero_crossing: bool = False,
+    ) -> list:
         """Compute P-wave terminal force (PTF) for each annotation.
 
-        If ``p_wave_morphology`` and ``inflection_point`` columns are present,
-        uses the annotated inflection point and skips monophasic/complex waves
-        (supervised mode). Otherwise detects the inflection automatically from the heavily
-        low-pass filtered signal and computes PTF for all waves and leads
-        regardless of morphology (unsupervised mode).
+        Supervised mode (``p_wave_morphology`` and ``inflection_point`` columns
+        present) uses the annotated inflection point and skips monophasic/complex
+        waves. Otherwise (unsupervised) the terminal segment is detected
+        automatically on the low-pass filtered signal for all waves and leads.
+
+        Args:
+            zero_crossing: Unsupervised mode only. If True, the terminal segment
+                starts at the positive-to-negative zero crossing (conventional
+                PTFV1, Morris et al.). If False (default), it starts at the point
+                of maximum negative dV/dt, which Jadidi et al. showed to correspond
+                to the onset of left atrial activation and to correlate with
+                left atrial low-voltage substrate on electroanatomical mapping.
 
         Returns:
-            PTF value per annotation (NaN for skipped or invalid segments).
+            PTF value per annotation (NaN for skipped or invalid segments, 0 if
+            there is no negative terminal part).
 
         References:
+            Morris, J. J., et al. (1964). P wave analysis in valvular heart
+            disease. Circulation, 29(2), 242-252.
+
             Jadidi et al. (2018). The duration of the amplified sinus-P-wave
             identifies presence of left atrial low voltage substrate and predicts
             outcome after pulmonary vein isolation in patients with persistent
@@ -230,7 +246,13 @@ class FeatureCalculators:
             seg_morph = self.segment_processor.extract_segment(
                 signal_morph, self._identity_segment, fs, row
             )
-            return ptf_auto(segment, fs, lead=row.lead, seg_morph=seg_morph)
+            return ptf_auto(
+                segment,
+                fs,
+                lead=row.lead,
+                seg_morph=seg_morph,
+                zero_crossing=zero_crossing,
+            )
 
         return self._compute_segment_metric(annotations, ecg_data, ptf_auto_metric)
 
@@ -1190,7 +1212,11 @@ class FeatureCalculators:
             "max_amplitude": self.max_amplitude(annotations, ecg_data),
             "min_amplitude": self.min_amplitude(annotations, ecg_data),
             "ptp_amplitude": self.peak_to_peak_amplitude(annotations, ecg_data),
-            "ptf": self.ptf(annotations, ecg_data),
+            "ptf": self.ptf(
+                annotations,
+                ecg_data,
+                zero_crossing=feature_computation_config.ptf_zero_crossing,
+            ),
             "ptf_auto": self.ptf(
                 annotations.drop(
                     columns=[
@@ -1200,6 +1226,7 @@ class FeatureCalculators:
                     ]
                 ),
                 ecg_data,
+                zero_crossing=feature_computation_config.ptf_zero_crossing,
             ),
             "dispersion": self.dispersion(annotations, fs),
             "atrial_rate": self.atrial_rate(annotations, ecg_data),

@@ -8,10 +8,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from atriakit.configs.feature_computation_config import FeatureComputationConfig
 from atriakit.configs.segment_config import SegmentConfig
 from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
 from atriakit.feature_calculator import FeatureCalculators
 from atriakit.features.area import _find_inflection
+from atriakit.features.area import ptf as ptf_fn
 from atriakit.features.area import ptf_auto as ptf_auto_fn
 from atriakit.features.vcg import vcg_axis_angles
 from atriakit.io import AnnotationsLoader
@@ -1324,7 +1326,8 @@ class TestPtfUnsupervisedFn:
         np.testing.assert_allclose(result, 10 / 7)
 
     def test_avr_uses_max_of_terminal(self):
-        # inverted signal: terminal positive, max = 2, terminal = 5 samples → 2 * 5/7 = 10/7
+        # inverted signal: terminal positive (flipped before the no-negative check),
+        # max = 2, terminal = 5 samples → 2 * 5/7 = 10/7
         avr_signal = -_REF_SIGNAL
         result = ptf_auto_fn(avr_signal, fs=_FS, lead="aVR")
         np.testing.assert_allclose(result, 10 / 7)
@@ -1353,14 +1356,74 @@ class TestPtfUnsupervisedFn:
         r2 = ptf_auto_fn(_REF_SIGNAL, fs=14)
         np.testing.assert_allclose(r1, 2 * r2)
 
+    def test_inflection_mode_uses_trough_depth_not_positive_start(self):
+        # inflection at 2 lands on the down-slope at +2.5; trough is only -1,
+        # terminal = [2.5, -1, 0, 0] → 1 * 4/6 (max-abs would give 2.5 * 4/6)
+        sig = np.array([0.0, 3.0, 2.5, -1.0, 0.0, 0.0])
+        assert _find_inflection(sig) == 2
+        np.testing.assert_allclose(ptf_auto_fn(sig, fs=6), 1 * 4 / 6)
+
     def test_monophasic_wave_ptf(self):
         # signal = [0, 0.5, 1, 0.5, 0] — symmetric positive monophasic
-        # d1 = [0.5, 0.5, 0, -0.5, -0.5], d2 = [0, -0.25, -0.5, -0.25, 0]
-        # no sign changes in d2 → fallback argmin(d1) = 3
-        # terminal = signal[3:] = [0.5, 0] → max(abs) = 0.5 → PTF = 2/5 * 0.5 = 0.2
+        # fallback inflection = 3, terminal = [0.5, 0] has no negative part → 0
         mono = np.array([0.0, 0.5, 1.0, 0.5, 0.0])
-        result = ptf_auto_fn(mono, fs=5)
-        assert result == pytest.approx(0.2)
+        assert ptf_auto_fn(mono, fs=5) == 0
+
+
+class TestPtfNoNegativePart:
+    @pytest.mark.parametrize(
+        "segment", [[0.0, 0.5, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]], ids=["positive", "flat"]
+    )
+    def test_ptf_returns_zero_without_negative_samples(self, segment):
+        assert ptf_fn(np.array(segment), fs=4) == 0
+
+    def test_ptf_amplitude_is_trough_depth_not_positive_peak(self):
+        # positive part (+3) is taller than the trough (-1) → depth 1, 4 samples at fs=4
+        assert ptf_fn(np.array([3.0, 1.0, -1.0, 0.0]), fs=4) == pytest.approx(1.0)
+
+
+class TestPtfAutoZeroCrossing:
+    def test_terminal_is_negative_run_only(self):
+        # _REF_SIGNAL crosses + → − at index 3 and returns to 0 at index 6;
+        # negative run = [-1,-2,-1] (3 samples) → PTF = 2 * 3/7 (inflection-based: 10/7)
+        result = ptf_auto_fn(_REF_SIGNAL, fs=_FS, zero_crossing=True)
+        np.testing.assert_allclose(result, 6 / 7)
+
+    def test_positive_tail_excluded_from_duration_and_amplitude(self):
+        # negative run = [-1,-2] (2 samples); the +3 tail must not count
+        sig = np.array([0.0, 1.0, -1.0, -2.0, 3.0, 3.0])
+        result = ptf_auto_fn(sig, fs=6, zero_crossing=True)
+        np.testing.assert_allclose(result, 2 * 2 / 6)
+
+    @pytest.mark.parametrize(
+        "segment",
+        [[0.0, 0.5, 1.0, 0.5, 0.0], [-0.5, -1.0, -0.5, 0.0]],
+        ids=["monophasic_positive", "purely_negative"],
+    )
+    def test_no_positive_to_negative_crossing_returns_zero(self, segment):
+        assert ptf_auto_fn(np.array(segment), fs=5, zero_crossing=True) == 0
+
+    def test_uses_last_crossing_before_minimum(self):
+        # crossings (+ → −) at index 2 and 5; minimum at 6 → run = [-1,-2] → 2 * 2/8
+        sig = np.array([0.0, 1.0, -0.2, 0.5, 0.5, -1.0, -2.0, 0.0])
+        result = ptf_auto_fn(sig, fs=8, zero_crossing=True)
+        np.testing.assert_allclose(result, 2 * 2 / 8)
+
+    def test_avr_is_inverted(self):
+        result = ptf_auto_fn(-_REF_SIGNAL, fs=_FS, lead="aVR", zero_crossing=True)
+        np.testing.assert_allclose(result, 6 / 7)
+
+    def test_seg_morph_controls_crossing_amplitude_from_segment(self):
+        # morph crosses at index 5; amplitude measured on the original segment
+        morph = np.array([0.0, 0.0, 0.0, 0.0, 1.0, -1.0, -1.0])
+        original = _REF_SIGNAL.copy()
+        original[5] = -5.0
+        result = ptf_auto_fn(original, fs=_FS, seg_morph=morph, zero_crossing=True)
+        np.testing.assert_allclose(result, 5 * 2 / 7)
+
+    def test_seg_morph_length_mismatch_raises(self):
+        with pytest.raises(ValueError, match="seg_morph length"):
+            ptf_auto_fn(_REF_SIGNAL, fs=_FS, seg_morph=_REF_SIGNAL[:-1])
 
 
 class TestPtfUnsupervisedFeatureCalculator:
@@ -1371,6 +1434,21 @@ class TestPtfUnsupervisedFeatureCalculator:
         fc, ecg_data = _make_dual_mock(_REF_SIGNAL, morph)
         result = fc.ptf(_ann(), ecg_data)
         np.testing.assert_allclose(result, [2 / 7])
+
+    def test_zero_crossing_flag_is_forwarded(self):
+        fc, ecg_data = _make_dual_mock(_REF_SIGNAL, _REF_SIGNAL)
+        result = fc.ptf(_ann(), ecg_data, zero_crossing=True)
+        np.testing.assert_allclose(result, [6 / 7])
+
+    @pytest.mark.parametrize("flag", [False, True])
+    def test_config_ptf_zero_crossing_reaches_both_ptf_columns(self, flag):
+        calc = MagicMock()
+        calc.fragment_metrics.return_value = ([], [], [])
+        config = FeatureComputationConfig(ptf_zero_crossing=flag)
+        FeatureCalculators._build_group_features(calc, _ann(), MagicMock(), config)
+        calls = calc.ptf.call_args_list
+        assert len(calls) == 2  # "ptf" and "ptf_auto"
+        assert [c.kwargs["zero_crossing"] for c in calls] == [flag, flag]
 
     def test_empty_annotations_returns_empty(self):
         fc, ecg_data = _make_dual_mock(_REF_SIGNAL, _REF_SIGNAL)
