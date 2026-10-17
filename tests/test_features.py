@@ -1682,10 +1682,37 @@ class TestFragmentsFinder:
         segment = np.array([0.0, 1.0, 0.9, 2.0, 0.0])  # the 1.0 -> 0.9 dip is only 0.1
 
         fragments = fragments_finder(
-            segment, lead_noise=0.1, fs=self.FS, min_fragment_length_ms=0, noise_multiplier=2
+            segment, lead_noise=0.1, fs=self.FS, min_fragment_length_ms=0, noise_multiplier=2, hysteresis=False
         )
 
         assert [(start, end) for start, end, _, _ in fragments] == [(0, 1), (2, 3), (3, 4)]
+
+    def test_hysteresis_ignores_a_reversal_below_the_threshold(self):
+        segment = np.array([0.0, 1.0, 0.9, 2.0, 0.0])  # the 0.1 dip is below the 0.2 threshold: one rising run
+
+        fragments = fragments_finder(segment, lead_noise=0.1, fs=self.FS, min_fragment_length_ms=0, noise_multiplier=2)
+
+        assert [(start, end) for start, end, _, _ in fragments] == [(0, 3), (3, 4)]
+
+    def test_hysteresis_keeps_a_rippled_wave_in_its_real_phases(self):
+        # a 60-sample rise and fall with a +/-0.02 ripple every 2 samples: without hysteresis the ripple cuts every
+        # phase into 2-sample runs, all shorter than the 10 ms minimum, so nothing is left
+        clean = np.concatenate([np.linspace(0.0, 1.0, 61), np.linspace(1.0, 0.0, 61)[1:]])
+        rippled = clean + 0.02 * np.tile([1.0, -1.0], len(clean))[: len(clean)]
+        noise, multiplier = 0.02, 3  # threshold 0.06, above the ripple
+
+        with_hysteresis = fragments_finder(rippled, noise, self.FS, min_fragment_length_ms=10, noise_multiplier=multiplier)
+        without = fragments_finder(rippled, noise, self.FS, min_fragment_length_ms=10, noise_multiplier=multiplier, hysteresis=False)
+
+        assert len(with_hysteresis) == 2  # the rise and the fall
+        assert without == []
+
+    def test_zero_threshold_matches_plain_extrema(self):
+        segment = np.array([0.0, 2.0, 1.0, 1.5, 0.5, 0.2])
+
+        assert fragments_finder(segment, 0, self.FS, min_fragment_length_ms=0) == fragments_finder(
+            segment, 0, self.FS, min_fragment_length_ms=0, hysteresis=False
+        )
 
     def test_runs_shorter_than_the_minimum_length_are_dropped(self):
         # boundaries 0, 1 (peak), 2 (trough), 5 (peak), 6: run lengths are 1, 1, 3, 1 samples
