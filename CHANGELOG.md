@@ -6,7 +6,9 @@ While the version is 0.x, minor releases may contain breaking changes.
 
 ## [Unreleased]
 
-### Changed
+## [0.2.1] - 2026-10-22
+
+### Fixed
 - **Feature values changed:** fragment detection now uses hysteresis. A turning
   point only splits the P-wave into fragments once the signal has reversed from
   it by the fragment amplitude threshold (`fragment_noise_multiplier` × noise),
