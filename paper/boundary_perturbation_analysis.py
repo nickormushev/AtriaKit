@@ -56,7 +56,7 @@ FEATURES = [
     "max_amplitude",
     "min_amplitude",
     "ptp_amplitude",
-    "ptf",
+    "ptf_auto",
     "dispersion",
     "atrial_rate",
     "complexity",
@@ -72,7 +72,7 @@ FEATURES = [
     "vcg_roundness",
     "vcg_flatness",
 ]
-FEATURE_LEADS = {"ptf": "V1"}  # PTF is reported for V1 only
+FEATURE_LEADS = {"ptf_auto": "V1"}  # PTF is reported for V1 only, as PTF-auto (no morphology labels needed, defined for every beat)
 CIRCULAR_FEATURES_DEGREES = {"axis", "vcg_axis_azimuth"}
 
 # ---------------------------------------------------------------------------
@@ -199,10 +199,36 @@ def icc_absolute_agreement(first: np.ndarray, second: np.ndarray) -> float:
     )
 
 
+BEAT_KEY = [AnnotationSchema.PATIENT_ID, AnnotationSchema.TYPE, AnnotationSchema.FILE_PATH, "p_wave_id"]
+RECORDING_KEY = [AnnotationSchema.PATIENT_ID, AnnotationSchema.TYPE, AnnotationSchema.FILE_PATH]
+
+
+def is_per_recording(table: pd.DataFrame, feature: str) -> bool:
+    """True if the feature has one value per recording (e.g. the median atrial rate), repeated on every row."""
+    return bool(table.groupby(RECORDING_KEY)[feature].nunique(dropna=True).max() <= 1)
+
+
+def is_per_beat(table: pd.DataFrame, feature: str) -> bool:
+    """True if the feature has one value per beat, repeated on every lead row (VCG, axis, dispersion, and
+    duration with cross-lead boundaries). Such a feature must count each beat once, not once per lead."""
+    return bool(table.groupby(BEAT_KEY)[feature].nunique(dropna=True).max() <= 1)
+
+
 def table_row(baseline: pd.DataFrame, perturbed_by_shift: dict[float, pd.DataFrame], feature: str) -> dict:
-    """One row: R_f at every shift, then R_f95 and ICC at WORST_CASE_SHIFT_MS."""
+    """One row: R_f at every shift, then R_f95 and ICC at WORST_CASE_SHIFT_MS.
+
+    The unit is what the feature describes: a beat in one lead for per-lead features, a beat for per-beat features,
+    a recording for per-recording features (atrial rate). n_waves counts those units.
+    """
     lead = FEATURE_LEADS.get(feature)
-    rows = baseline.index if lead is None else baseline.index[baseline[AnnotationSchema.LEAD] == lead]
+    if lead is not None:
+        rows = baseline.index[baseline[AnnotationSchema.LEAD] == lead]
+    elif is_per_recording(baseline, feature):
+        rows = baseline.drop_duplicates(RECORDING_KEY).index  # one row per recording
+    elif is_per_beat(baseline, feature):
+        rows = baseline.drop_duplicates(BEAT_KEY).index  # one row per beat
+    else:
+        rows = baseline.index
     original = baseline.loc[rows]
     iqr = original[feature].quantile(0.75) - original[feature].quantile(0.25)
     row = {"feature": feature if lead is None else f"{feature} ({lead})", "n_waves": int(original[feature].notna().sum())}

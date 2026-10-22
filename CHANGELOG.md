@@ -7,6 +7,18 @@ While the version is 0.x, minor releases may contain breaking changes.
 ## [Unreleased]
 
 ### Changed
+- **Feature values changed:** fragment detection now uses hysteresis. A turning
+  point only splits the P-wave into fragments once the signal has reversed from
+  it by the fragment amplitude threshold (`fragment_noise_multiplier` × noise),
+  as in Murthy et al.'s "adjacent extrema more than 3 noise SDs apart". On noisy
+  single beats, ripple previously cut every deflection into runs shorter than
+  `min_fragment_length_ms`, so some beats had no fragments at all. Affects
+  `fragment_count`, `fragment_width`, `fragment_height` and the VCG fragment
+  features. `fragments_finder(..., hysteresis=False)` gives the previous behavior.
+
+## [0.2.0] - 2026-10-16
+
+### Changed
 - `compute_all` now skips `axis` and the VCG features (NaN plus a warning) when
   the signal preprocessor uses normalization, since per-lead scaling distorts
   the amplitude ratios they depend on.
