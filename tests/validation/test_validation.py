@@ -105,21 +105,13 @@ def test_lead_feature_matches_analytic_value(clean, lead, feature):
 
 # --- terminal force (PTF) --------------------------------------------------
 
-# aVR is the inverted V1 wave, so every PTF variant should match V1's value. The
-# classifier places aVR's inflection one sample late (exact-zero second difference
-# counts as positive); pinned as an xfail until the classifier rework.
-AVR_INFLECTION_ONE_SAMPLE_LATE = pytest.mark.xfail(
-    strict=True,
-    reason="calculate_inflexion treats an exact-zero second difference as positive, so the "
-    "Negative-Positive (aVR) inflection lands one sample after V1's",
-)
-ONE_SAMPLE_OF_TERMINAL_SEGMENT = 1 / (rc.WINDOW - rc.WINDOW // 2 + 1)  # ~3% of the terminal part
+# aVR is the inverted V1 wave, so every PTF variant should match V1's value.
 
 
-@pytest.mark.parametrize("lead, rtol", [("V1", RTOL), ("aVR", ONE_SAMPLE_OF_TERMINAL_SEGMENT + RTOL)])
-def test_supervised_ptf_on_biphasic_wave(clean, lead, rtol):
+@pytest.mark.parametrize("lead", ["V1", "aVR"])
+def test_supervised_ptf_on_biphasic_wave(clean, lead):
     expected = rc.lead_expected(lead)["ptf"]
-    assert_close(values_for(clean, lead, "ptf"), expected, f"{lead}/ptf", rtol=rtol)
+    assert_close(values_for(clean, lead, "ptf"), expected, f"{lead}/ptf")
 
 
 @pytest.mark.parametrize("lead", ["V1", "aVR"])
@@ -129,12 +121,15 @@ def test_zero_crossing_ptf_matches_conventional_definition(clean_zero_crossing, 
     assert_close(actual, expected, f"{lead}/ptf zero-crossing")
 
 
-@pytest.mark.parametrize(
-    "lead", ["V1", pytest.param("aVR", marks=AVR_INFLECTION_ONE_SAMPLE_LATE)]
-)
+@pytest.mark.parametrize("lead", ["V1", "aVR"])
 def test_inflection_point_is_the_steepest_zero_crossing(clean, lead):
     expected = rc.p_onsets() + rc.WINDOW // 2  # absolute sample index, one per beat
     assert_close(values_for(clean, lead, "inflection_point"), expected, f"{lead}/inflection")
+
+
+@pytest.mark.parametrize("lead", ["V1", "aVR"])
+def test_supervised_and_default_ptf_agree_on_biphasic_wave(clean, lead):
+    assert_close(values_for(clean, lead, "ptf"), values_for(clean, lead, "ptf_auto"), f"{lead}/ptf vs ptf_auto")
 
 
 # --- entropy ---------------------------------------------------------------

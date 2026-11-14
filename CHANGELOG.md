@@ -6,6 +6,20 @@ While the version is 0.x, minor releases may contain breaking changes.
 
 ## [Unreleased]
 
+### Changed
+- **Output values changed (supervised PTF only):** the supervised inflexion point
+  (`inflection_point`, used by the supervised `ptf`) now uses the same criterion and code as
+  `ptf_auto` (`morphology.steepest_inflexion`, on the full annotated window). Previously it used a
+  separate forward-difference implementation that counted an exactly zero second difference as
+  positive, so the inflexion point of an inverted biphasic wave (aVR) could land one sample late.
+  On beats classified as biphasic the supervised `ptf` now equals `ptf_auto`; `ptf_auto`,
+  `p_wave_morphology` and all other descriptors are unchanged.
+- `calculate_inflexion` now takes the P-wave segment instead of its first derivative.
+
+### Tests
+- The aVR inflexion-point test is no longer an expected failure, and the supervised PTF of aVR is
+  tested at the same tolerance as V1. New test: supervised and default PTF agree on biphasic waves.
+
 ## [0.2.1] - 2026-10-22
 
 ### Fixed

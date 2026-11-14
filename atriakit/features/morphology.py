@@ -1,15 +1,44 @@
 import numpy as np
 
 
-def calculate_inflexion(ecg_derivative, row_onset, phase_type):
+def steepest_inflexion(segment: np.ndarray, descending: bool) -> int:
+    """Return the inflexion point of a P-wave segment, or ``-1`` if there is none.
+
+    The inflexion point is the zero-crossing of the second derivative with the
+    steepest first-derivative slope: the steepest descent if ``descending``,
+    otherwise the steepest ascent.
+
+    Args:
+        segment: 1-D signal array of the P-wave segment.
+        descending: ``True`` for the steepest descent (positive-negative wave),
+            ``False`` for the steepest ascent (negative-positive wave, e.g. aVR).
+
+    Returns:
+        Index into ``segment``, or ``-1`` if the second derivative never changes
+        sign (or the segment is too short to differentiate).
+    """
+    if len(segment) < 2:
+        return -1
+
+    d1 = np.gradient(segment)
+    d2 = np.gradient(d1)
+    sign_changes = np.where(np.diff(np.sign(d2)))[0]
+
+    if len(sign_changes) == 0:
+        return -1
+
+    slopes = d1[sign_changes]
+    return int(sign_changes[np.argmin(slopes) if descending else np.argmax(slopes)])
+
+
+def calculate_inflexion(ecg_segment, row_onset, phase_type):
     """Return the inflexion point index for a biphasic P-wave.
 
-    Finds the zero-crossing of the second derivative with the steepest
-    first-derivative slope: steepest descent for ``"Biphasic Positive-Negative"``,
+    Uses ``steepest_inflexion``: steepest descent for ``"Biphasic Positive-Negative"``,
     steepest ascent for ``"Biphasic Negative-Positive"``.
 
     Args:
-        ecg_derivative: First derivative of the trimmed P-wave segment.
+        ecg_segment: 1-D signal array of the P-wave segment.
         row_onset: Onset index of the P-wave in the original signal, used to
             convert the local index back to signal coordinates.
         phase_type: Morphology label from ``morphology_classifier``; only
@@ -19,22 +48,17 @@ def calculate_inflexion(ecg_derivative, row_onset, phase_type):
         Inflexion point index in signal coordinates, or ``-1`` if the phase
         type is not biphasic or no zero-crossings are found.
     """
-    ecg_second_derivative = np.diff(ecg_derivative)
-    signs = ecg_second_derivative >= 0
-    zero_crossings = np.where(np.diff(signs) != 0)[0] + 1
-
-    if len(zero_crossings) == 0:
+    if phase_type == "Biphasic Positive-Negative":
+        descending = True
+    elif phase_type == "Biphasic Negative-Positive":
+        descending = False
+    else:
         return -1
 
-    if phase_type == "Biphasic Positive-Negative":
-        selected_idx = zero_crossings[np.argmin(ecg_derivative[zero_crossings])]
-        return selected_idx + row_onset + 1
-
-    if phase_type == "Biphasic Negative-Positive":
-        selected_idx = zero_crossings[np.argmax(ecg_derivative[zero_crossings])]
-        return selected_idx + row_onset + 1
-
-    return -1
+    index = steepest_inflexion(np.asarray(ecg_segment, dtype=float), descending)
+    if index == -1:
+        return -1
+    return index + row_onset
 
 
 def validate_group(count, duration_threshold, segment, start, voltage_threshold):
@@ -137,10 +161,8 @@ def morphology_classifier(
     # Requires at least 5 samples so the trimmed segment has a usable derivative.
     if len(ecg_segment) > 4:
         segment = ecg_segment[1:-1]
-        trim = 1
     else:
         segment = ecg_segment
-        trim = 0
 
     ecg_derivative = np.diff(segment)
     signs = ecg_derivative >= 0
@@ -184,6 +206,6 @@ def morphology_classifier(
         if seg_min >= 0 or abs(seg_max) < morphology_min_phase_fraction * abs(seg_min):
             phase_type = "Complex"
 
-    inflexion_point = calculate_inflexion(ecg_derivative, row_onset + trim, phase_type)
+    inflexion_point = calculate_inflexion(ecg_segment, row_onset, phase_type)
 
     return (phase_type, int(inflexion_point))

@@ -784,10 +784,10 @@ def test_classify_p_wave_morphology(
     assert phase_types[0] == "Monophasic Positive"
     assert inflection_points[0] == -1
     assert phase_types[1] == "Biphasic Positive-Negative"
-    # inflexion_point should correspond to minimum in derivative
     # ecg[1, 0:9] = np.array([0, 1, 2, 1, 0, -1, -2, -1, 0])
-    # derivative: [ 1,  1, -1, -1, -1, -1,  1,  1] -> argmin = 2, onset=0 -> 2+0+1=3
-    # second derivative check: [ 0, -1,  0,  0,  0,  2,  0] -> positive at index 2
+    # d1: [1, 1, 0, -1, -1, -1, 0, 1, 1]
+    # d2: [0, -0.5, -1, -0.5, 0, 0.5, 1, 0.5, 0] -> sign changes at 0, 3, 4, 7
+    # d1 at those: [1, -1, -1, 1] -> steepest descent at index 3, onset=0 -> 3
     assert inflection_points[1] == 3
 
 
