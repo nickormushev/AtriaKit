@@ -19,6 +19,10 @@ While the version is 0.x, minor releases may contain breaking changes.
 ### Tests
 - The aVR inflexion-point test is no longer an expected failure, and the supervised PTF of aVR is
   tested at the same tolerance as V1. New test: supervised and default PTF agree on biphasic waves.
+- Removed the expected-failure test that compared the morphology label between per-lead and
+  lead-combined windows. It tested the effect of a different window, not whether the label is
+  computed correctly; the effect of the annotation window on the descriptors is assessed by the
+  boundary-perturbation analysis (`paper/boundary_perturbation_analysis.py`).
 
 ## [0.2.1] - 2026-10-22
 

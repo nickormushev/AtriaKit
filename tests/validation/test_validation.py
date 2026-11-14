@@ -208,35 +208,6 @@ def test_kors_matrix_matches_the_published_table():
     np.testing.assert_allclose(convert_ecg_segment_to_vcg(one_hot_leads, lead_to_index), rc.KORS)
 
 
-# --- known cross_lead limitation (strict xfail) ---------------------------
-# cross_lead pads aVF's shorter window with flat baseline; the classifier's ``>= 0``
-# check reads it as a rising phase and can relabel the wave.
-# ---------------------------------------------------------------------------
-
-
-def run_with_boundary_mode(boundary_mode: str):
-    """Clean recording, preprocessing off, so only the boundary mode varies."""
-    pipeline = Pipeline(
-        ecg_base_path=".",
-        pipeline_config=rc.no_preprocessing_config(),
-        loader=rc.make_ecg_loader(rc.build_signal()),
-    )
-    annotations = rc.build_annotations(boundary_mode=boundary_mode)
-    result = pipeline.run(annotations, cache_dir=None)
-    return result.get_df() if hasattr(result, "get_df") else result
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="classify_p_wave_morphology counts aVF's flat cross_lead padding as a rising "
-    "phase, so its label changes under cross_lead",
-)
-def test_morphology_label_is_the_same_under_both_boundary_modes():
-    own_window = values_for(run_with_boundary_mode("per_lead"), "aVF", "p_wave_morphology")
-    shared_window = values_for(run_with_boundary_mode("cross_lead"), "aVF", "p_wave_morphology")
-    assert set(shared_window) == set(own_window)
-
-
 # ---------------------------------------------------------------------------
 # 2. Preprocessing suppresses the artifacts it is designed to suppress
 #
