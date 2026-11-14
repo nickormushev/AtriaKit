@@ -475,9 +475,17 @@ def vcg_expected() -> dict[str, float]:
     return vcg_features(vcg_loop(), net=vcg_net_vector())
 
 
-def reference_shannon(wave: np.ndarray, n_bins: int = 32) -> float:
-    """Shannon entropy in bits of the amplitude histogram, via ``scipy.stats.entropy``."""
-    counts, _ = np.histogram(wave, bins=n_bins)
+def reference_shannon(wave: np.ndarray, n_bins: int = 32, bin_range: tuple | None = None) -> float:
+    """Shannon entropy in bits of the amplitude histogram, via ``scipy.stats.entropy``.
+
+    ``n_bins`` equal-width bins over ``bin_range``, or over the wave's own min/max if ``None``.
+    Samples outside the range are dropped; the last bin includes its upper edge.
+    """
+    low, high = bin_range if bin_range is not None else (wave.min(), wave.max())
+    edges = np.linspace(low, high, n_bins + 1)
+    inside = wave[(wave >= low) & (wave <= high)]
+    bin_of_sample = np.minimum(np.searchsorted(edges, inside, side="right") - 1, n_bins - 1)
+    counts = np.bincount(bin_of_sample, minlength=n_bins)
     return float(scipy_entropy(counts, base=2))
 
 

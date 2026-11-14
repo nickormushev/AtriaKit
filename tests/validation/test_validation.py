@@ -148,6 +148,41 @@ def test_ramp_entropies_match_closed_form(clean):
         assert_close(values_for(clean, "V2", feature), closed_form[feature], f"V2/{feature}")
 
 
+# --- Shannon entropy with the manuscript's binning ---------------------------
+
+MANUSCRIPT_SHANNON_BINS = 128
+MANUSCRIPT_SHANNON_RANGE_MV = (-2.0, 2.0)
+
+
+@pytest.fixture(scope="module")
+def clean_manuscript_shannon():
+    """Golden recording, preprocessing off, Shannon entropy binned as in the manuscript."""
+    return run_without_preprocessing(
+        FeatureComputationConfig(
+            shannon_entropy_n_bins=MANUSCRIPT_SHANNON_BINS,
+            shannon_entropy_bin_range=MANUSCRIPT_SHANNON_RANGE_MV,
+        )
+    )
+
+
+@pytest.mark.parametrize("lead", SHAPE_LEADS)
+def test_shannon_entropy_with_the_manuscript_binning(clean_manuscript_shannon, lead):
+    expected = rc.reference_shannon(
+        rc.p_wave(rc.LEAD_SPECS[lead]), MANUSCRIPT_SHANNON_BINS, MANUSCRIPT_SHANNON_RANGE_MV
+    )
+    actual = values_for(clean_manuscript_shannon, lead, "shannon_entropy")
+    assert_close(actual, expected, f"{lead}/shannon_entropy (manuscript binning)")
+
+
+# --- rates -------------------------------------------------------------------
+
+
+def test_atrial_and_heart_rate_match_the_beat_spacing(clean):
+    """Eight beats 400 samples apart at 500 Hz: 75 bpm for both rates."""
+    for feature in ("atrial_rate", "heart_rate"):
+        assert_close(clean[feature], rc.BEAT_RATE_BPM, feature)
+
+
 # --- axis and vectorcardiogram --------------------------------------------
 
 
