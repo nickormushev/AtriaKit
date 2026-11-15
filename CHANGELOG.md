@@ -16,13 +16,26 @@ While the version is 0.x, minor releases may contain breaking changes.
   `p_wave_morphology` and all other descriptors are unchanged.
 - `calculate_inflexion` now takes the P-wave segment instead of its first derivative.
 
+### Fixed
+- `morphology_classifier`: a step of exactly zero now continues the current phase instead of
+  counting as rising, so a perfectly flat stretch (e.g. the baseline that lead-combined windows add
+  after a lead's own offset on a noise-free signal) no longer creates an extra phase. Signals
+  without exactly-zero steps are unaffected.
+
 ### Tests
 - The aVR inflexion-point test is no longer an expected failure, and the supervised PTF of aVR is
   tested at the same tolerance as V1. New test: supervised and default PTF agree on biphasic waves.
 - Removed the expected-failure test that compared the morphology label between per-lead and
   lead-combined windows. It tested the effect of a different window, not whether the label is
-  computed correctly; the effect of the annotation window on the descriptors is assessed by the
-  boundary-perturbation analysis (`paper/boundary_perturbation_analysis.py`).
+  computed correctly; the flat-baseline case it exposed is fixed (see Fixed) and covered by a unit
+  test of the classifier. The suite has no expected failures.
+- The artifact-suppression test now reads `examples/atriakit_manuscript_config.yaml` (0.5-150 Hz
+  band-pass, onset alignment) instead of its own 1-150 Hz configuration. `offset_amplitude` is
+  checked on all beats except the first and last, which lie in the filters' edge transients.
+
+### Documentation
+- `examples/atriakit_manuscript_config.yaml`: the header comment now gives the 0.5-150 Hz band-pass
+  actually used (it said 1-150 Hz), and every setting that overrides a package default is marked.
 
 ## [0.2.1] - 2026-10-22
 

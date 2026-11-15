@@ -33,11 +33,14 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import yaml
 from scipy.stats import entropy as scipy_entropy
 
 from atriakit import AnnotationsLoader
 from atriakit.configs.annotations_loader_config import AnnotationsLoaderConfig
+from atriakit.configs.feature_computation_config import FeatureComputationConfig
 from atriakit.configs.pipeline_config import PipelineConfig
+from atriakit.configs.segment_config import SegmentConfig
 from atriakit.configs.signal_preprocessor_config import SignalPreprocessorConfig
 from atriakit.io import ECGLoader
 from atriakit.models.annotation_schema import AnnotationSchema
@@ -239,20 +242,20 @@ def no_preprocessing_config() -> PipelineConfig:
     )
 
 
+MANUSCRIPT_CONFIG = Path(__file__).resolve().parents[2] / "examples" / "atriakit_manuscript_config.yaml"
+
+
 def target_preprocessing_config() -> PipelineConfig:
-    """The preprocessing actually used for the real-data analysis: 1-150 Hz bandpass,
-    no P-onset spline baseline, and no segment-level baseline correction either
-    (SegmentConfig's own default, "none"). Morphology preprocessing (shape
-    classification, inflection detection) is left at its own library default --
-    untouched here, as in the real-data rerun.
-    """
+    """The manuscript configuration, read from ``examples/atriakit_manuscript_config.yaml``."""
+    section = yaml.safe_load(MANUSCRIPT_CONFIG.read_text(encoding="utf-8"))["pipeline"]
     return PipelineConfig(
-        signal_preprocessor_config=SignalPreprocessorConfig(
-            lowcut=1,
-            highcut=150,
-            notch_freq=[50.0, 100.0],  # both mains harmonics; 100 Hz is inside a 150 Hz passband
-            global_baseline_mode="none",
+        feature_computation=FeatureComputationConfig(**section["feature_computation"]),
+        segment_config=SegmentConfig(**section["segment_config"]),
+        signal_preprocessor_config=SignalPreprocessorConfig(**section["signal_preprocessor_config"]),
+        morphology_preprocessor_config=SignalPreprocessorConfig(
+            **section["morphology_preprocessor_config"]
         ),
+        group_tolerance_ms=section["group_tolerance_ms"],
     )
 
 

@@ -6,10 +6,8 @@ recipe, or with an independent numpy/scipy computation where no closed form exis
 
 1. Preprocessing off: features vs analytic truth; any mismatch is an implementation error.
 2. Artifact suppression: a known artifact must perturb features far less with the
-   analysis preprocessing (``reference_cases.target_preprocessing_config``) than without.
-
-The residual left by each artifact is reported by
-``paper/preprocessing_artifact_analysis.py``, not asserted here.
+   manuscript's preprocessing (``reference_cases.target_preprocessing_config``, read from
+   ``examples/atriakit_manuscript_config.yaml``) than without.
 """
 
 from __future__ import annotations
@@ -212,8 +210,9 @@ def test_kors_matrix_matches_the_published_table():
 # 2. Preprocessing suppresses the artifacts it is designed to suppress
 #
 # Smoke check that preprocessing is wired up and effective, not a quality measure: a
-# loose factor set below the weakest observed pair (mains, ~9x). Only pairs the filter
-# targets: drift/wander (high-pass) and mains (notch).
+# loose factor set below the weakest observed pair (mains / min amplitude, ~14x with the
+# manuscript configuration). Only pairs the filter targets: drift/wander (high-pass) and
+# mains (notch).
 # ---------------------------------------------------------------------------
 
 MIN_SUPPRESSION_FACTOR = 5.0
@@ -224,13 +223,18 @@ PERTURBED_FEATURES = {
     "mains": ["area", "max_amplitude", "min_amplitude", "offset_amplitude", "ptp_amplitude"],
 }
 
+# offset_amplitude reads a single sample, so on the first and last beat it picks up the
+# edge transients of the zero-phase filters on this short recording; those beats are skipped.
+INTERIOR_BEATS_ONLY = {"offset_amplitude"}
+
 
 def worst_feature_shift(reference, actual, feature: str) -> float:
     """Largest absolute change in ``feature`` across every lead and beat."""
+    beats = slice(1, -1) if feature in INTERIOR_BEATS_ONLY else slice(None)
     worst = 0.0
     for lead in rc.LEADS:
-        expected = values_for(reference, lead, feature).astype(float)
-        got = values_for(actual, lead, feature).astype(float)
+        expected = values_for(reference, lead, feature).astype(float)[beats]
+        got = values_for(actual, lead, feature).astype(float)[beats]
         worst = max(worst, float(np.abs(got - expected).max()))
     return worst
 
@@ -274,7 +278,3 @@ def test_preprocessing_suppresses_known_artifacts(artifact_suppression, artifact
     )
 
 
-@pytest.fixture(scope="module")
-def clean_default():
-    """Golden recording through the preprocessing used for the real-data analysis."""
-    return run_pipeline(rc.build_signal(), rc.target_preprocessing_config())

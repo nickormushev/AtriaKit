@@ -61,6 +61,26 @@ def calculate_inflexion(ecg_segment, row_onset, phase_type):
     return index + row_onset
 
 
+def derivative_signs(derivative: np.ndarray) -> np.ndarray:
+    """Return ``True`` where the signal rises and ``False`` where it falls.
+
+    A step of exactly zero continues the current phase, so a flat stretch never
+    starts a new one. Steps before the first non-zero step take its sign; an
+    all-flat derivative counts as rising.
+    """
+    nonzero = np.flatnonzero(derivative)
+    if len(nonzero) == 0:
+        return np.ones(len(derivative), dtype=bool)
+
+    signs = np.empty(len(derivative), dtype=bool)
+    current = derivative[nonzero[0]] > 0
+    for i, step in enumerate(derivative):
+        if step != 0:
+            current = step > 0
+        signs[i] = current
+    return signs
+
+
 def validate_group(count, duration_threshold, segment, start, voltage_threshold):
     """Return ``True`` if a sign group meets the duration and amplitude thresholds."""
     end = min(start + count, len(segment))
@@ -165,7 +185,7 @@ def morphology_classifier(
         segment = ecg_segment
 
     ecg_derivative = np.diff(segment)
-    signs = ecg_derivative >= 0
+    signs = derivative_signs(ecg_derivative)
 
     group_signs = extract_sign_groups(
         signs,

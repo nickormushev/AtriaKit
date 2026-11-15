@@ -1,5 +1,5 @@
 import numpy as np
-from atriakit.features.morphology import extract_sign_groups
+from atriakit.features.morphology import extract_sign_groups, morphology_classifier
 
 segment = np.zeros(20)  # Dummy segment, not used in this case
 segment[0] = 100
@@ -70,3 +70,8 @@ def test_multiple_noise_blocks():
     segment[0] = 100
     result = extract_sign_groups(signs, duration_threshold=0.1, segment=segment)  # threshold block ≥3
     assert result == [True]  # only the last block survives
+
+
+def test_flat_tail_is_not_a_phase():
+    wave = np.concatenate([np.sin(np.pi * np.arange(55) / 54), np.zeros(10)])
+    assert morphology_classifier(wave, 0, 0.0, 0.1, 3.0)[0] == "Monophasic Positive"
