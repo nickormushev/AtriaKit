@@ -83,6 +83,12 @@ For development dependencies (testing, etc.):
 pip install -e .[dev]
 ```
 
+To reproduce the manuscript results with the exact dependency versions used there (Python 3.12.11):
+
+```bash
+pip install "atriakit[manuscript]"
+```
+
 The package requires Python 3.12+.
 
 ## Core API

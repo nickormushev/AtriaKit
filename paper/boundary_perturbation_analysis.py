@@ -15,7 +15,9 @@ Angle differences are wrapped to [-180, 180).
 Sections: 1 settings, 2 perturbation, 3 pipeline runs (cached), 4 table, 5 main.
 
 Run:
-    bash paper/run_perturbation.sh
+    python paper/boundary_perturbation_analysis.py --annotations <annotations.csv> \
+        --ecg-root <ecg folder> --config examples/atriakit_manuscript_config.yaml \
+        --out-dir <output folder> --shifts-ms 2 5 10 20 --seed 42
 
 Feature tables are cached in <out-dir>/conditions; a run with different annotations, config
 or seed is refused. Only aggregate numbers are written.

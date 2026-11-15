@@ -40,6 +40,17 @@ dev = [
     "neurokit2>=0.2.7",
     "pytest>=7.4",
 ]
+# Exact versions used for the manuscript results (Python 3.12.11): pip install "atriakit[manuscript]"
+manuscript = [
+    "numpy==2.2.5",
+    "scipy==1.18.0",
+    "pandas==2.2.3",
+    "nolds==0.6.3",
+    "pydicom==3.0.1",
+    "pydantic==2.11.4",
+    "PyYAML==6.0.2",
+    "tqdm==4.67.1",
+]
 
 [project.urls]
 Homepage = "https://github.com/nickormushev/AtriaKit"

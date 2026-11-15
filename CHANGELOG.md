@@ -6,6 +6,10 @@ While the version is 0.x, minor releases may contain breaking changes.
 
 ## [Unreleased]
 
+### Added
+- Optional dependency set `manuscript` in `pyproject.toml` with the exact versions used for the
+  manuscript results (Python 3.12.11): `pip install "atriakit[manuscript]"`.
+
 ### Changed
 - **Default preprocessing changed (breaking for users of the defaults):** the feature signal is now
   band-pass filtered at 0.5-150 Hz (was a 120 Hz low-pass), and no baseline correction is applied by
@@ -43,6 +47,8 @@ While the version is 0.x, minor releases may contain breaking changes.
   actually used (it said 1-150 Hz), and every setting that overrides a package default is marked.
   Shannon entropy now uses 128 bins over -0.5 to 0.5 mV (was -2 to 2 mV, which left a typical
   P-wave in only 4-6 bins).
+- README: a Known Limitations section (threshold dependence of the morphology class and of the
+  supervised PTF) and the `manuscript` install option.
 
 ## [0.2.1] - 2026-10-22
 
