@@ -148,8 +148,9 @@ def test_ramp_entropies_match_closed_form(clean):
 
 # --- Shannon entropy with the manuscript's binning ---------------------------
 
-MANUSCRIPT_SHANNON_BINS = 128
-MANUSCRIPT_SHANNON_RANGE_MV = (-2.0, 2.0)
+MANUSCRIPT_FEATURES = rc.target_preprocessing_config().feature_computation
+MANUSCRIPT_SHANNON_BINS = MANUSCRIPT_FEATURES.shannon_entropy_n_bins
+MANUSCRIPT_SHANNON_RANGE_MV = tuple(MANUSCRIPT_FEATURES.shannon_entropy_bin_range)
 
 
 @pytest.fixture(scope="module")

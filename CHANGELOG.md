@@ -7,6 +7,11 @@ While the version is 0.x, minor releases may contain breaking changes.
 ## [Unreleased]
 
 ### Changed
+- **Default preprocessing changed (breaking for users of the defaults):** the feature signal is now
+  band-pass filtered at 0.5-150 Hz (was a 120 Hz low-pass), and no baseline correction is applied by
+  default (the P-onset spline, `global_baseline_mode: p_onset_spline`, is now opt-in). Choose the
+  baseline correction that suits your data. Configurations that set these values explicitly, such
+  as `examples/atriakit_manuscript_config.yaml`, are unaffected.
 - **Output values changed (supervised PTF only):** the supervised inflexion point
   (`inflection_point`, used by the supervised `ptf`) now uses the same criterion and code as
   `ptf_auto` (`morphology.steepest_inflexion`, on the full annotated window). Previously it used a
@@ -36,6 +41,8 @@ While the version is 0.x, minor releases may contain breaking changes.
 ### Documentation
 - `examples/atriakit_manuscript_config.yaml`: the header comment now gives the 0.5-150 Hz band-pass
   actually used (it said 1-150 Hz), and every setting that overrides a package default is marked.
+  Shannon entropy now uses 128 bins over -0.5 to 0.5 mV (was -2 to 2 mV, which left a typical
+  P-wave in only 4-6 bins).
 
 ## [0.2.1] - 2026-10-22
 

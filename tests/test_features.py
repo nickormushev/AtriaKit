@@ -1292,7 +1292,13 @@ def test_global_baseline_computed_once_for_nested_calls():
     # complexity calls max_absolute_amplitude internally; both are wrapped by
     # @_auto_wrap_baseline.  The outer entry (complexity) must set the baseline
     # onsets and the inner call must detect they are already set (reentrant guard).
-    feature_calculator = make_feature_calculator()
+    feature_calculator = make_feature_calculator(
+        signal_preprocessor=SignalPreprocessor(
+            SignalPreprocessorConfig(
+                lowcut=None, highcut=None, notch_freq=50, global_baseline_mode="p_onset_spline"
+            )
+        )
+    )
 
     baseline_values_seen = []
 

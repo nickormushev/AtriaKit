@@ -533,7 +533,7 @@ def corruptions(seed: int = 0) -> dict[str, np.ndarray]:
     * ``drift``    linear baseline ramp of 0.05 mV/s (a P-onset spline removes it exactly)
     * ``wander``   0.25 Hz sinusoidal baseline wander
     * ``mains``    50 Hz and 100 Hz line interference
-    * ``hf``       tones between 150 and 245 Hz, above the 120 Hz low-pass corner
+    * ``hf``       tones between 150 and 245 Hz, at and above the 150 Hz corner of the band-pass
     * ``combined`` drift + mains + hf
     """
     t = np.arange(RECORDING_LENGTH) / FS

@@ -22,7 +22,7 @@ class SignalPreprocessorConfig:
         20.0  # Q factor for the notch filter; higher values make the notch narrower.
     )
     global_baseline_mode: Literal["none", "p_onset_spline"] = (
-        "p_onset_spline"  # Full-recording baseline correction mode applied before segment extraction.
+        "none"  # Full-recording baseline correction mode applied before segment extraction.
     )
     global_baseline_smoothing_factor: float = (
         0  # Dimensionless smoothing strength for the SciPy spline fit; 0 keeps exact interpolation, larger values follow only slower baseline drift.
@@ -39,8 +39,8 @@ class SignalPreprocessorConfig:
 
 
 def default_signal_preprocessor_config() -> SignalPreprocessorConfig:
-    """Low-pass at 120 Hz with 50/100 Hz notch. Used for amplitude and duration features."""
-    return SignalPreprocessorConfig(lowcut=None, highcut=120, notch_freq=[50.0, 100.0])
+    """Band-pass 0.5-150 Hz with 50/100 Hz notch. Used for amplitude and duration features."""
+    return SignalPreprocessorConfig(lowcut=0.5, highcut=150, notch_freq=[50.0, 100.0])
 
 
 def default_morphology_preprocessor_config() -> SignalPreprocessorConfig:

@@ -84,14 +84,14 @@ class FeatureCalculators:
     """Computes P-wave features from ECG signals and beat annotations.
 
     Baseline correction is applied automatically on each call if enabled
-    in the config (on by default).
+    in the config (off by default).
 
     All feature methods return NaN for annotations where the segment is empty.
 
     Attributes:
         signal_preprocessor: Preprocessor for amplitude and duration features.
         morphology_preprocessor: Preprocessor for shape-based features; uses a
-            narrower bandpass to capture the general P-wave shape.
+            30 Hz low-pass by default to capture the general P-wave shape.
         segment_processor: Extracts annotation-bounded, baseline-corrected
             segments and computes metrics over them; see ``SegmentConfig``.
     """
