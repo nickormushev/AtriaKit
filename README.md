@@ -219,6 +219,11 @@ fc = FeatureCalculators(
 )
 ```
 
+## Known Limitations
+
+- **Morphology class.** `p_wave_morphology` depends on two thresholds: the minimum phase duration (`morphology_min_phase_fraction`) and the minimum phase amplitude relative to the noise level (`morphology_noise_sd_multiplier`). Clinical definitions set no minimum size for the negative phase of a biphasic P-wave, so small deflections near the offset can change the class. This applies in every configuration, and more so with `cross_lead` boundaries, which can add baseline after a lead's own offset. Treat the class as a qualitative aid, not a quantitative descriptor, and adjust the thresholds to your data.
+- **Supervised terminal force.** The supervised `ptf` is computed only for P-waves classified as biphasic, so which beats receive a value depends on the class; use it with care in quantitative comparisons. The default `ptf_auto` does not use the class.
+
 ## Repository Layout
 
 ```text
