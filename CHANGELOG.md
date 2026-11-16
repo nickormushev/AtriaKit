@@ -6,6 +6,8 @@ While the version is 0.x, minor releases may contain breaking changes.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-16
+
 ### Added
 - Optional dependency set `manuscript` in `pyproject.toml` with the exact versions used for the
   manuscript results (Python 3.12.11): `pip install "atriakit[manuscript]"`.
