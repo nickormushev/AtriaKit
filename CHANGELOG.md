@@ -46,7 +46,7 @@ While the version is 0.x, minor releases may contain breaking changes.
 - `examples/atriakit_manuscript_config.yaml`: the header comment now gives the 0.5-150 Hz band-pass
   actually used (it said 1-150 Hz), and every setting that overrides a package default is marked.
   Shannon entropy now uses 128 bins over -0.5 to 0.5 mV (was -2 to 2 mV, which left a typical
-  P-wave in only 4-6 bins).
+  P-wave in only 4-6 bins). The demo configuration `examples/pipeline_config.yaml` uses the same range.
 - README: a Known Limitations section (threshold dependence of the morphology class and of the
   supervised PTF) and the `manuscript` install option.
 
